@@ -7,7 +7,7 @@ const Controls = ({
   mass1, setMass1, mass2, setMass2, 
   airRes, setAirRes, 
   lightInt, setLightInt, 
-  lightPos, setLightPos,
+  lightDir, setLightDir,
   started, onStart, onReset, times 
 }) => (
   <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
@@ -27,6 +27,9 @@ const Controls = ({
       <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold' }}>IŞIK ŞİDDETİ: {lightInt.toFixed(1)}</label>
         <input type="range" min="0" max="10" step="0.5" value={lightInt} onChange={(e) => setLightInt(Number(e.target.value))} style={{ width: '100%' }} />
+
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>IŞIK YÖNÜ: {lightDir}°</label>
+        <input type="range" min="0" max="360" step="1" value={lightDir} onChange={(e) => setLightDir(Number(e.target.value))} style={{ width: '100%' }} />
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
           <input type="checkbox" checked={airRes} onChange={(e) => setAirRes(e.target.checked)} disabled={started} id="air" />
@@ -109,7 +112,7 @@ export default function App() {
   const [mass2, setMass2] = useState(50)
   const [airRes, setAirRes] = useState(true)
   const [lightInt, setLightInt] = useState(2.5)
-  const [lightPos, setLightPos] = useState([15, 30, 15])
+  const [lightDir, setLightDir] = useState(45)
   const [started, setStarted] = useState(false)
   const [times, setTimes] = useState({ t1: 0, t2: 0 })
   const [running, setRunning] = useState({ r1: false, r2: false })
@@ -143,19 +146,26 @@ export default function App() {
     return () => clearInterval(interval)
   }, [running.r1, running.r2])
 
+  const lightRadius = 25
+  const lightPos = [
+    Math.sin((lightDir * Math.PI) / 180) * lightRadius,
+    30,
+    Math.cos((lightDir * Math.PI) / 180) * lightRadius,
+  ]
+
   return (
-    <div style={{ width: "100vw", height: "100vh", background: "#ffffff" }}>
+    <div style={{ width: "100vw", height: "100vh", background: "#000000" }}>
       <Controls 
         mass1={mass1} setMass1={setMass1} mass2={mass2} setMass2={setMass2} 
         airRes={airRes} setAirRes={setAirRes}
         lightInt={lightInt} setLightInt={setLightInt}
-        lightPos={lightPos} setLightPos={setLightPos}
+        lightDir={lightDir} setLightDir={setLightDir}
         started={started} onStart={startSimulation} onReset={resetSimulation}
         times={times}
       />
       
-      <Canvas shadows camera={{ position: [30, 25, 30], fov: 35 }}>
-        <color attach="background" args={["#ffffff"]} />
+      <Canvas shadows camera={{ position: [30, 25, 30], fov: 35 }} style={{ background: "#000000" }}>
+        <color attach="background" args={["#000000"]} />
         <ambientLight intensity={0.6} />
         
         <directionalLight 
@@ -171,6 +181,7 @@ export default function App() {
           shadow-mapSize={[2048, 2048]} 
         />
         
+        <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, 0.01, 0]} />
         <OrbitControls makeDefault />
         
         <Physics gravity={[0, -9.81, 0]} key={started ? 'active' : 'idle'}>
