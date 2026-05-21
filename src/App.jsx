@@ -1,6 +1,7 @@
 import React, { useState } from "react"
 import FallingCubes from "./FallingCubes"
 import InclinedPlane from "./InclinedPlane"
+import ProjectileMotion from "./ProjectileMotion"
 
 export default function App() {
   const [mode, setMode] = useState("falling")
@@ -9,12 +10,15 @@ export default function App() {
     <div style={{ width: "100vw", height: "100vh", background: "#fff" }}>
       {/* MENÜ - Her zaman en üstte durur */}
       <div style={{ position: 'absolute', top: '20px', width: '100%', display: 'flex', justifyContent: 'center', gap: '20px', zIndex: 100 }}>
-        <button onClick={() => setMode("falling")} style={menuBtn(mode === "falling")}>SERBEST DÜŞÜŞ</button>
-        <button onClick={() => setMode("ramp")} style={menuBtn(mode === "ramp")}>EĞİK DÜZLEM</button>
+        <button onClick={() => setMode("falling")} style={menuBtn(mode === "falling")}>FREE FALL</button>
+        <button onClick={() => setMode("ramp")} style={menuBtn(mode === "ramp")}>INCLINED PLANE</button>
+        <button onClick={() => setMode("projectile")} style={menuBtn(mode === "projectile")}>PROJECTILE MOTION</button>
       </div>
 
-      {/* Seçilen simülasyonu yükle (Canvas'lar bu dosyaların içinde olacak) */}
-      {mode === "falling" ? <FallingCubes /> : <InclinedPlane />}
+      {/* Seçilen simülasyonu yükle */}
+      {mode === "falling" && <FallingCubes />}
+      {mode === "ramp" && <InclinedPlane />}
+      {mode === "projectile" && <ProjectileMotion />}
     </div>
   )
 }

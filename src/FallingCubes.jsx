@@ -8,43 +8,58 @@ const Controls = ({
   airRes, setAirRes, 
   lightInt, setLightInt, 
   lightDir, setLightDir,
-  started, onStart, onReset, times 
-}) => (
+  started, running, onStart, onReset, times 
+}) => {
+  const finished = started && !running.r1 && !running.r2;
+  return (
   <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
     <div style={{ background: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '280px' }}>
-      <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>SERBEST DÜŞME</h3>
+      <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>FREE FALL</h3>
       
-      <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-        <label style={{ display: 'block', fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>1. KÜP (PEMBE): {mass1} kg</label>
-        <input type="range" min="1" max="100" value={mass1} onChange={(e) => setMass1(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
-        <div style={{ fontSize: '11px', color: '#666' }}>Süre: {times.t1.toFixed(2)}s</div>
-        
-        <label style={{ display: 'block', fontSize: '11px', color: '#00acc1', fontWeight: 'bold', marginTop: '10px' }}>2. KÜP (MAVİ): {mass2} kg</label>
-        <input type="range" min="1" max="100" value={mass2} onChange={(e) => setMass2(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
-        <div style={{ fontSize: '11px', color: '#666' }}>Süre: {times.t2.toFixed(2)}s</div>
+      {/* 1. KÜP */}
+      <div style={{ background: (started && !running.r1) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (started && !running.r1) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>1. CUBE (PINK): {mass1} kg</label>
+        </div>
+        <input type="range" min="1" max="100" value={mass1} onChange={(e) => setMass1(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '8px 0' }} />
+        <div style={{ fontSize: (started && !running.r1) ? '14px' : '12px', fontWeight: 'bold', color: (started && !running.r1) ? '#2e7d32' : '#d81b60', textAlign: 'right' }}>
+          Time: {times.t1.toFixed(3)} s
+        </div>
       </div>
 
+      {/* 2. KÜP */}
+      <div style={{ background: (started && !running.r2) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (started && !running.r2) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold' }}>2. CUBE (BLUE): {mass2} kg</label>
+        </div>
+        <input type="range" min="1" max="100" value={mass2} onChange={(e) => setMass2(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '8px 0' }} />
+        <div style={{ fontSize: (started && !running.r2) ? '14px' : '12px', fontWeight: 'bold', color: (started && !running.r2) ? '#2e7d32' : '#00acc1', textAlign: 'right' }}>
+          Time: {times.t2.toFixed(3)} s
+        </div>
+      </div>
+
+      {/* IŞIK VE SÜRTÜNME */}
       <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold' }}>IŞIK ŞİDDETİ: {lightInt.toFixed(1)}</label>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold' }}>LIGHT INTENSITY: {lightInt.toFixed(1)}</label>
         <input type="range" min="0" max="10" step="0.5" value={lightInt} onChange={(e) => setLightInt(Number(e.target.value))} style={{ width: '100%' }} />
 
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>IŞIK YÖNÜ: {lightDir}°</label>
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>LIGHT ANGLE: {lightDir}°</label>
         <input type="range" min="0" max="360" step="1" value={lightDir} onChange={(e) => setLightDir(Number(e.target.value))} style={{ width: '100%' }} />
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px' }}>
           <input type="checkbox" checked={airRes} onChange={(e) => setAirRes(e.target.checked)} disabled={started} id="air" />
-          <label htmlFor="air" style={{ fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>HAVA SÜRTÜNMESİ</label>
+          <label htmlFor="air" style={{ fontSize: '12px', cursor: 'pointer', fontWeight: 'bold' }}>AIR RESISTANCE</label>
         </div>
       </div>
 
       {!started ? (
-        <button onClick={onStart} style={{ padding: '14px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>BAŞLAT</button>
+        <button onClick={onStart} style={{ padding: '14px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>START</button>
       ) : (
-        <button onClick={onReset} style={{ padding: '14px', cursor: 'pointer', background: '#eee', color: '#000', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' }}>YENİLE</button>
+        <button onClick={onReset} style={{ padding: '14px', cursor: 'pointer', background: '#eee', color: '#000', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' }}>RESET</button>
       )}
     </div>
   </div>
-)
+)}
 
 function Ground() {
   const [ref] = useBox(() => ({ type: "Static", args: [40, 1, 40], position: [0, -0.5, 0] }))
@@ -160,7 +175,7 @@ export default function App() {
         airRes={airRes} setAirRes={setAirRes}
         lightInt={lightInt} setLightInt={setLightInt}
         lightDir={lightDir} setLightDir={setLightDir}
-        started={started} onStart={startSimulation} onReset={resetSimulation}
+        started={started} running={running} onStart={startSimulation} onReset={resetSimulation}
         times={times}
       />
       

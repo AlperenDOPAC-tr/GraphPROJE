@@ -59,6 +59,6 @@ A boilerplate to build R3F projects
   yarn preview
   ```
 
-> Not: Arkadaşlarının bilgisayarında çalıştırmak için Node.js kurulumu yapılmış olmalı. npm veya yarn kuruluysa proje hemen açılır.
+> Not: Bilgisayarında çalıştırmak için Node.js kurulumu yapılmış olmalı. npm veya yarn kuruluysa proje hemen açılır.
 
 ![image](https://user-images.githubusercontent.com/6551176/221732091-23ee52cb-4150-42fa-b998-43628d7a6b0d.png)
