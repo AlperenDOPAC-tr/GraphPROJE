@@ -283,13 +283,15 @@ export default function InclinedPlane() {
     for(let i=16; i<256; i+=32) for(let j=16; j<256; j+=32) { ctx2.beginPath(); ctx2.arc(i,j,8,0,Math.PI*2); ctx2.fill(); }
     const texSphere = new THREE.CanvasTexture(t2); texSphere.wrapS = texSphere.wrapT = THREE.RepeatWrapping;
 
-    // 3. Çizgili UYARI Deseni (Rampa için)
+    // 3. Sarı-Beyaz Dama Deseni (Rampa için)
     const t3 = document.createElement('canvas'); t3.width = 256; t3.height = 256; const ctx3 = t3.getContext('2d');
-    ctx3.fillStyle = '#333333'; ctx3.fillRect(0,0,256,256);
-    ctx3.fillStyle = '#ffc107'; // Sarı çizgiler
-    for(let i=0; i<256; i+=32) ctx3.fillRect(i, 0, 16, 256);
+    ctx3.fillStyle = '#ffffff'; ctx3.fillRect(0,0,256,256);
+    ctx3.fillStyle = '#ffc107'; // Sarı kareler
+    for(let i=0; i<8; i++) for(let j=0; j<8; j++) if((i+j)%2===0) ctx3.fillRect(i*32, j*32, 32, 32);
     const texRamp = new THREE.CanvasTexture(t3); texRamp.wrapS = texRamp.wrapT = THREE.RepeatWrapping;
-    texRamp.repeat.set(8, 2); // Rampa uzun olduğu için yatayda 8 kere tekrar etsin
+    // ExtrudeGeometry yan yüzeylerde (rulo yüzeyi) dünya koordinatlarına göre UV atar (WorldUVGenerator).
+    // Tekrar sayısını çok küçülterek (0.05) dokuyu geriyoruz, böylece kareler görünür hale geliyor.
+    texRamp.repeat.set(0.05, 0.05);
 
     return { cube: texCube, sphere: texSphere, ramp: texRamp };
   }, []);
@@ -360,7 +362,7 @@ export default function InclinedPlane() {
               <input type="checkbox" id="realWorld" checked={realWorldMode} 
                      onChange={e => setRealWorldMode(e.target.checked)} disabled={started} />
               <label htmlFor="realWorld" style={{ fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
-                Real World (Kinetic Friction)
+                Kinetic Friction
               </label>
             </div>
           </div>
@@ -381,7 +383,7 @@ export default function InclinedPlane() {
           {/* KÜP */}
           <div style={{ background: finished.f1 ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: finished.f1 ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s', marginBottom: '15px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>CUBE (PINK): {mass1} kg</label>
+              <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>CUBE: {mass1} kg</label>
             </div>
             <input type="range" min="1" max="100" value={mass1}
               onChange={e => setMass1(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
@@ -394,7 +396,7 @@ export default function InclinedPlane() {
           {/* KÜRE */}
           <div style={{ background: finished.f2 ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: finished.f2 ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold' }}>SPHERE (BLUE): {mass2} kg</label>
+              <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold' }}>SPHERE: {mass2} kg</label>
             </div>
             <input type="range" min="1" max="100" value={mass2}
               onChange={e => setMass2(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
@@ -417,8 +419,8 @@ export default function InclinedPlane() {
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
               }}
             >
-              <option value="full">Solid Sphere (Spins fast)</option>
-              <option value="hollow">Hollow Sphere (Spins slow)</option>
+              <option value="full">Solid Sphere</option>
+              <option value="hollow">Hollow Sphere</option>
             </select>
             <div style={{ fontSize: finished.f2 ? '18px' : '13px', fontWeight: 'bold', color: finished.f2 ? '#2e7d32' : '#333', transition: 'all 0.3s', marginTop: '8px' }}>
               {times.t2.toFixed(3)} s

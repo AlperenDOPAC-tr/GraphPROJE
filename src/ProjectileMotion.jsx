@@ -133,12 +133,14 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
   const lastVy = useRef(0)
   const maxH = useRef(0)
   const lastPointTime = useRef(0)
+  const frameCount = useRef(0)
   
   // reset maxH on new start
   React.useEffect(() => {
     if (started) {
       maxH.current = 0;
       lastPointTime.current = 0;
+      frameCount.current = 0;
     }
   }, [started]);
   
@@ -156,8 +158,16 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
   // Her frame'de hızı takip et (çarpmadan hemen önceki hızı yakalamak için)
   useFrame((state) => {
     if (started && !finished && bodyRef.current) {
+      frameCount.current++;
       const v = bodyRef.current.linvel();
-      const speed = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+      let speed = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+      
+      // Rapier motoru "fixed" konumdan "dynamic" konuma geçerken ilk birkaç frame hızı 0 verebilir.
+      // Bu durumu yakalayıp ilk hızı (velocity) atayarak enerji barlarındaki sıçramayı engelliyoruz.
+      if (frameCount.current < 5 && speed < 0.1) {
+        speed = velocity;
+      }
+
       lastVel.current = speed;
       lastVy.current = v.y; // Sadece düşüşte olduğunu anlamak için Y hızını da kaydedelim
       
@@ -265,7 +275,7 @@ export default function ProjectileMotion() {
 
   const handleStart = () => {
     setElapsed(0)
-    setFinalVel(0)
+    setFinalVel(velocity) // Set explicitly to avoid 0 before first frame
     setFinalDist(0)
     setCurrentHeight(towerHeight)
     setMaxHeight(towerHeight)
@@ -290,7 +300,7 @@ export default function ProjectileMotion() {
     setStarted(false)
     runningRef.current = false
     setElapsed(0)
-    setFinalVel(0)
+    setFinalVel(velocity) // Reset explicitly
     setFinalDist(0)
     setCurrentHeight(towerHeight)
     setMaxHeight(towerHeight)
@@ -359,6 +369,16 @@ export default function ProjectileMotion() {
   // Kulenin merkez X pozisyonu
   const towerX = -25;
 
+  // Enerji Hesaplamaları
+  const displayVelocity = (!started && !finished) ? velocity : finalVel;
+  const currentKE = 0.5 * mass * Math.pow(displayVelocity, 2);
+  const currentPE = mass * 9.81 * currentHeight;
+  const totalEnergy = currentKE + currentPE;
+  const initialEnergy = (0.5 * mass * Math.pow(velocity, 2)) + (mass * 9.81 * towerHeight);
+  const maxEnergy = Math.max(initialEnergy, totalEnergy) || 1;
+  const kePercent = Math.min(100, Math.max(0, (currentKE / maxEnergy) * 100));
+  const pePercent = Math.min(100, Math.max(0, (currentPE / maxEnergy) * 100));
+
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#000000" }}>
       
@@ -373,7 +393,12 @@ export default function ProjectileMotion() {
               TOWER HEIGHT: {towerHeight}m
             </label>
             <input type="range" min="0" max="40" step="1"
-              value={towerHeight} onChange={e => setTowerHeight(Number(e.target.value))}
+              value={towerHeight} onChange={e => {
+                const val = Number(e.target.value);
+                setTowerHeight(val);
+                setCurrentHeight(val);
+                setMaxHeight(val);
+              }}
               disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
 
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>
@@ -433,6 +458,19 @@ export default function ProjectileMotion() {
             </div>
             <div style={{ fontSize: '14px', fontWeight: 'bold', color: finished ? '#d81b60' : '#555', marginTop: '4px' }}>
               {finished ? "Impact Speed: " : "Live Speed: "} {finalVel.toFixed(2)} m/s
+            </div>
+
+            {/* ENERJİ BARLARI */}
+            <div style={{ marginTop: '16px', borderTop: '1px solid #ddd', paddingTop: '12px' }}>
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#ff3d00' }}>KINETIC ENERGY: {(currentKE).toFixed(0)} J</div>
+              <div style={{ width: '100%', background: '#e0e0e0', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${kePercent}%`, background: '#ff3d00', height: '100%' }} />
+              </div>
+              
+              <div style={{ fontSize: '11px', fontWeight: 'bold', marginTop: '8px', marginBottom: '4px', color: '#2979ff' }}>POTENTIAL ENERGY: {(currentPE).toFixed(0)} J</div>
+              <div style={{ width: '100%', background: '#e0e0e0', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                <div style={{ width: `${pePercent}%`, background: '#2979ff', height: '100%' }} />
+              </div>
             </div>
           </div>
 
