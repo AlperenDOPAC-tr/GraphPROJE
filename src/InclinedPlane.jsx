@@ -1,25 +1,24 @@
 import React, { useState, useRef } from "react"
+import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import {
   Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep
 } from "@react-three/rapier"
 import { OrbitControls, Text, Billboard } from "@react-three/drei"
+import { getGroundTexture } from "./utils"
 
 // ─── SABİTLER ──────────────────────────────────────────────────────────────
-// Ramp açısı: tan(0.5) ≈ 0.546  →  max μ = 0.53 < 0.546  →  küp HERKESTE kayar
-const RAMP_ANGLE = 0.5
-const RAMP_POS   = [0, 7.2, 0]
-const KUP_POS    = [-4, 12.6, -7.3]   // ramp yüzeyinin tam üstü
-const KURE_POS   = [ 4, 12.6, -7.3]
 const DT         = 1 / 60             // Rapier sabit fizik adımı (s)
 
 // ─── ZEMİN ─────────────────────────────────────────────────────────────────
 function Ground({ friction }) {
+  const texture = React.useMemo(() => getGroundTexture(15, 15), []);
+
   return (
     <RigidBody type="fixed" colliders={false}>
       <mesh receiveShadow position={[0, -0.5, 0]}>
         <boxGeometry args={[60, 1, 60]} />
-        <meshStandardMaterial color="#eeeeee" />
+        <meshStandardMaterial color="#ffffff" map={texture} />
       </mesh>
       <CuboidCollider args={[30, 0.5, 30]} position={[0, -0.5, 0]}
                       friction={friction} restitution={0} />
@@ -28,26 +27,38 @@ function Ground({ friction }) {
 }
 
 // ─── RAMPA ─────────────────────────────────────────────────────────────────
-function Ramp({ friction }) {
+function Ramp({ friction, angleRad, texture }) {
+  const width = 15;
+  const length = 30;
+  const h = length * Math.tan(angleRad);
+  
+  const shape = React.useMemo(() => {
+    const s = new THREE.Shape();
+    s.moveTo(-length/2, -h/2);
+    s.lineTo(length/2, -h/2);
+    s.lineTo(-length/2, h/2);
+    s.lineTo(-length/2, -h/2);
+    return s;
+  }, [length, h]);
+
+  const extrudeSettings = React.useMemo(() => ({ depth: width, bevelEnabled: false }), [width]);
+
   return (
-    <RigidBody type="fixed" colliders={false}
-               rotation={[RAMP_ANGLE, 0, 0]} position={RAMP_POS}>
-      <mesh receiveShadow castShadow>
-        <boxGeometry args={[15, 0.5, 30]} />
-        <meshStandardMaterial color="#444444" />
+    <RigidBody type="fixed" colliders="hull" friction={friction} restitution={0} position={[0, h/2, 0]} rotation={[0, -Math.PI / 2, 0]}>
+      <mesh receiveShadow castShadow position={[0, 0, -width/2]}>
+        <extrudeGeometry args={[shape, extrudeSettings]} />
+        <meshStandardMaterial color={texture ? "white" : "#444444"} map={texture || null} />
       </mesh>
-      {/* Collider'a direkt sürtünme → Rapier bunu kesin uygular */}
-      <CuboidCollider args={[7.5, 0.25, 15]} friction={friction} restitution={0} />
     </RigidBody>
   )
 }
 
 // ─── GÖRSEL CİSİM (BAŞLAT öncesi, fizik yok) ───────────────────────────────
-function CompetitorVisual({ type, pos, color, name }) {
+function CompetitorVisual({ type, pos, color, name, angleRad, texture }) {
   return (
-    <mesh position={pos} rotation={type === "box" ? [RAMP_ANGLE, 0, 0] : [0, 0, 0]} castShadow>
+    <mesh position={pos} rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]} castShadow>
       {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-      <meshStandardMaterial color={color} />
+      <meshStandardMaterial color={texture ? "white" : color} map={texture || null} />
       <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
             fontWeight="bold" outlineWidth={0.05} outlineColor="black">
         {name}
@@ -57,7 +68,7 @@ function CompetitorVisual({ type, pos, color, name }) {
 }
 
 // ─── FİZİKSEL CİSİM (BAŞLAT sonrası, Rapier) ───────────────────────────────
-function CompetitorPhysics({ type, pos, color, name, friction, distribution, mass }) {
+function CompetitorPhysics({ type, pos, color, name, friction, distribution, mass, angleRad, texture }) {
   let massProps = undefined;
 
   if (type === "sphere") {
@@ -88,11 +99,11 @@ function CompetitorPhysics({ type, pos, color, name, friction, distribution, mas
       linearDamping={0}
       angularDamping={0}
       position={pos}
-      rotation={type === "box" ? [RAMP_ANGLE, 0, 0] : [0, 0, 0]}
+      rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]}
     >
       <mesh castShadow>
         {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-        <meshStandardMaterial color={color} />
+        <meshStandardMaterial color={texture ? "white" : color} map={texture || null} />
         <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
               fontWeight="bold" outlineWidth={0.05} outlineColor="black">
           {name}
@@ -107,14 +118,14 @@ function CompetitorPhysics({ type, pos, color, name, friction, distribution, mas
 }
 
 // ─── BİTİŞ SENSÖRÜ (görünmez, geçişli) ────────────────────────────────────
-function FinishSensor({ position, onHit }) {
+function FinishSensor({ position, onHit, angleRad }) {
   const hitRef = useRef(false)
   return (
     <RigidBody
       type="fixed"
       sensor                         // Rapier: fiziksel temas YOK, sadece tespit
       position={position}
-      rotation={[RAMP_ANGLE, 0, 0]}  // Bitiş çizgisi rampa açısına dik olacak şekilde eğildi
+      rotation={[angleRad, 0, 0]}  // Bitiş çizgisi rampa açısına dik olacak şekilde eğildi
       onIntersectionEnter={() => {   // Herhangi bir dinamik cisim girince tetikle
         if (!hitRef.current) { hitRef.current = true; onHit() }
       }}
@@ -148,7 +159,7 @@ function PhysicsClock({ started, onTick }) {
 }
 
 // ─── AÇI GÖSTERGESİ ──────────────────────────────────────────────────────────
-function AngleIndicator({ side }) {
+function AngleIndicator({ side, angleRad }) {
   const x = side === "left" ? -8 : 8;
   const pos = [x, 0, 13.16]
   
@@ -164,7 +175,7 @@ function AngleIndicator({ side }) {
       </mesh>
       
       {/* Rampa çizgisi */}
-      <group rotation={[RAMP_ANGLE, 0, 0]}>
+      <group rotation={[angleRad, 0, 0]}>
         <mesh position={[0, 0.05, -1.5]}>
           <boxGeometry args={[0.1, 0.1, 3]} />
           <meshBasicMaterial color="#ffc107" />
@@ -173,14 +184,14 @@ function AngleIndicator({ side }) {
 
       {/* Açı Yayı (Arc) */}
       <mesh rotation={[0, Math.PI / 2, 0]} position={[0, 0.05, 0]}>
-        <ringGeometry args={[1.5, 1.6, 32, 1, 0, RAMP_ANGLE]} />
+        <ringGeometry args={[1.5, 1.6, 32, 1, 0, angleRad]} />
         <meshBasicMaterial color="#ffc107" side={2} />
       </mesh>
 
       {/* Metin (Kameraya her zaman dönük olması için Billboard kullanıyoruz) */}
       <Billboard position={[textX, 0.8, -1.0]}>
         <Text fontSize={0.8} color="#ffc107" outlineWidth={0.05} outlineColor="black" fontWeight="bold">
-          {(RAMP_ANGLE * 180 / Math.PI).toFixed(1)}°
+          {(angleRad * 180 / Math.PI).toFixed(1)}°
         </Text>
       </Billboard>
     </group>
@@ -188,21 +199,37 @@ function AngleIndicator({ side }) {
 }
 
 // ─── CANVAS İÇİ SAHNE ──────────────────────────────────────────────────────
-function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, onFinish, onTick }) {
+function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, onFinish, onTick, angleRad, textures }) {
   // Küp kaydığı için gerçek dünyada statik sürtünme yerine daha düşük olan kinetik sürtünmeye maruz kalır.
   // Küre ise yuvarlandığı için kayma yapmaz ve statik tutunma (yüksek sürtünme) ile çalışır.
   const boxFriction = realWorldMode ? friction * 0.6 : friction;
+
+  const length = 30;
+  const h = length * Math.tan(angleRad);
+  const startZ = -7.3;
+  // Surface height formula at Z. Wedge goes from Z=15 (y=0) to Z=-15 (y=h).
+  const surfaceYAtStart = h * (15 - startZ) / 30;
+  
+  // Pos calculation: 1.0 is the radius (half-size), and we offset it perpendicular to the slope, plus a tiny 0.1 drop.
+  const startY = surfaceYAtStart + (1.0 / Math.cos(angleRad)) + 0.1;
+
+  const KUP_POS    = [-4, startY, startZ]
+  const KURE_POS   = [ 4, startY, startZ]
+
+  // Finish sensor at Z=14
+  const surfaceYAtFinish = h * (15 - 14) / 30;
+  const finishY = surfaceYAtFinish + 4; // Sensor is 8 tall, centered
 
   return (
     <>
       <PhysicsClock started={started} onTick={onTick} />
       <Ground friction={friction} />
-      <Ramp   friction={friction} />
-      <AngleIndicator side="left" />
-      <AngleIndicator side="right" />
+      <Ramp   friction={friction} angleRad={angleRad} texture={textures?.ramp} />
+      <AngleIndicator side="left" angleRad={angleRad} />
+      <AngleIndicator side="right" angleRad={angleRad} />
 
       {/* Görsel kırmızı bitiş çizgisi */}
-      <mesh position={[0, 0.4, 14]} rotation={[RAMP_ANGLE, 0, 0]}>
+      <mesh position={[0, surfaceYAtFinish + 0.05, 14]} rotation={[angleRad, 0, 0]}>
         <boxGeometry args={[20, 0.1, 0.5]} />
         <meshStandardMaterial color="red" />
       </mesh>
@@ -210,16 +237,16 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
       {!started ? (
         /* BAŞLAT öncesi: saf görsel */
         <>
-          <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  />
-          <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" />
+          <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE" angleRad={angleRad} texture={textures?.cube} />
+          <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} />
         </>
       ) : (
         /* Simülasyon aktif: Rapier fizik + sensörler */
         <>
-          <CompetitorPhysics type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  friction={boxFriction} mass={mass1} />
-          <CompetitorPhysics type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" friction={friction} distribution={distribution} mass={mass2} />
-          <FinishSensor position={[-4, 6, 14]} onHit={() => onFinish("CUBE")}  />
-          <FinishSensor position={[ 4, 6, 14]} onHit={() => onFinish("SPHERE")} />
+          <CompetitorPhysics type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  friction={boxFriction} mass={mass1} angleRad={angleRad} texture={textures?.cube} />
+          <CompetitorPhysics type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" friction={friction} distribution={distribution} mass={mass2} angleRad={angleRad} texture={textures?.sphere} />
+          <FinishSensor position={[-4, finishY, 14]} onHit={() => onFinish("CUBE")} angleRad={angleRad} />
+          <FinishSensor position={[ 4, finishY, 14]} onHit={() => onFinish("SPHERE")} angleRad={angleRad} />
         </>
       )}
     </>
@@ -229,6 +256,7 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
 // ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function InclinedPlane() {
   const [started,  setStarted]  = useState(false)
+  const [rampAngleDeg, setRampAngleDeg] = useState(30)
   const [friction, setFriction] = useState(0.05)
   const [distribution, setDistribution] = useState("full")
   const [realWorldMode, setRealWorldMode] = useState(true)
@@ -238,6 +266,33 @@ export default function InclinedPlane() {
   const [lightIntensity, setLightIntensity] = useState(1.5)
   const [times,    setTimes]    = useState({ t1: 0, t2: 0 })
   const [finished, setFinished] = useState({ f1: false, f2: false })
+
+  // Dışarıdan resim indirmek yerine kod ile Texture üretiyoruz!
+  const textures = React.useMemo(() => {
+    // 1. Dama Tahtası (Küp için)
+    const t1 = document.createElement('canvas'); t1.width = 256; t1.height = 256; const ctx1 = t1.getContext('2d');
+    ctx1.fillStyle = '#ffffff'; ctx1.fillRect(0,0,256,256);
+    ctx1.fillStyle = '#d81b60'; // Pembe
+    for(let i=0; i<8; i++) for(let j=0; j<8; j++) if((i+j)%2===0) ctx1.fillRect(i*32, j*32, 32, 32);
+    const texCube = new THREE.CanvasTexture(t1); texCube.wrapS = texCube.wrapT = THREE.RepeatWrapping;
+
+    // 2. Benekli (Küre için)
+    const t2 = document.createElement('canvas'); t2.width = 256; t2.height = 256; const ctx2 = t2.getContext('2d');
+    ctx2.fillStyle = '#ffffff'; ctx2.fillRect(0,0,256,256);
+    ctx2.fillStyle = '#00acc1'; // Mavi
+    for(let i=16; i<256; i+=32) for(let j=16; j<256; j+=32) { ctx2.beginPath(); ctx2.arc(i,j,8,0,Math.PI*2); ctx2.fill(); }
+    const texSphere = new THREE.CanvasTexture(t2); texSphere.wrapS = texSphere.wrapT = THREE.RepeatWrapping;
+
+    // 3. Çizgili UYARI Deseni (Rampa için)
+    const t3 = document.createElement('canvas'); t3.width = 256; t3.height = 256; const ctx3 = t3.getContext('2d');
+    ctx3.fillStyle = '#333333'; ctx3.fillRect(0,0,256,256);
+    ctx3.fillStyle = '#ffc107'; // Sarı çizgiler
+    for(let i=0; i<256; i+=32) ctx3.fillRect(i, 0, 16, 256);
+    const texRamp = new THREE.CanvasTexture(t3); texRamp.wrapS = texRamp.wrapT = THREE.RepeatWrapping;
+    texRamp.repeat.set(8, 2); // Rampa uzun olduğu için yatayda 8 kere tekrar etsin
+
+    return { cube: texCube, sphere: texSphere, ramp: texRamp };
+  }, []);
 
   const lightRad = (lightAngle * Math.PI) / 180;
   const lightPos = [Math.cos(lightRad) * 30, 30, Math.sin(lightRad) * 30];
@@ -284,6 +339,13 @@ export default function InclinedPlane() {
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>INCLINED PLANE</h3>
 
           <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
+              RAMP ANGLE: {rampAngleDeg}°
+            </label>
+            <input type="range" min="10" max="60" step="1"
+              value={rampAngleDeg} onChange={e => setRampAngleDeg(Number(e.target.value))}
+              disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
+
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
               FRICTION COEFFICIENT (μ): {friction.toFixed(2)}
             </label>
@@ -381,7 +443,6 @@ export default function InclinedPlane() {
           shadow-camera-near={0.5} shadow-camera-far={100}
           shadow-mapSize={[2048, 2048]}
         />
-        <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, 0.01, 0]} />
         <OrbitControls makeDefault />
 
         {/*
@@ -402,6 +463,8 @@ export default function InclinedPlane() {
             started={started}
             onFinish={handleFinish}
             onTick={handleTick}
+            angleRad={rampAngleDeg * Math.PI / 180}
+            textures={textures}
           />
         </Physics>
       </Canvas>

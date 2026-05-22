@@ -1,16 +1,22 @@
 import React, { useState, useRef } from "react"
+import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep } from "@react-three/rapier"
 import { OrbitControls, Text, Billboard, Line } from "@react-three/drei"
+import { getGroundTexture, getSphereTexture, getTowerTexture } from "./utils"
 
 // ─── ZEMİN ─────────────────────────────────────────────────────────────────
 function Ground() {
+
+
   // Kulenin sol ucu X: -27'de. Zemin buradan başlayıp 300 birim sağa gidecek. Merkez: 123
+  const texture = React.useMemo(() => getGroundTexture(50, 10), []);
+
   return (
     <RigidBody name="ground" type="fixed" colliders={false}>
       <mesh receiveShadow position={[123, -0.5, 0]}>
         <boxGeometry args={[300, 1, 40]} />
-        <meshStandardMaterial color="#eeeeee" />
+        <meshStandardMaterial color="#ffffff" map={texture} />
       </mesh>
       <CuboidCollider args={[150, 0.5, 20]} position={[123, -0.5, 0]} />
     </RigidBody>
@@ -40,11 +46,12 @@ function PhysicsClock({ started, onTick }) {
 // ─── KULE ──────────────────────────────────────────────────────────────────
 function Tower({ height, position }) {
   if (height <= 0) return null;
+  const texture = React.useMemo(() => getTowerTexture(), []);
   return (
     <RigidBody type="fixed" colliders={false} position={position}>
       <mesh receiveShadow castShadow position={[0, height / 2, 0]}>
         <boxGeometry args={[4, height, 4]} />
-        <meshStandardMaterial color="#555555" />
+        <meshStandardMaterial color="white" map={texture} />
       </mesh>
       <CuboidCollider args={[2, height / 2, 2]} position={[0, height / 2, 0]} />
     </RigidBody>
@@ -189,6 +196,8 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
     angularInertiaLocalFrame: { w: 1, x: 0, y: 0, z: 0 }
   };
 
+  const texture = React.useMemo(() => getSphereTexture("cyan"), []);
+
   return (
     <RigidBody
       ref={bodyRef}
@@ -216,7 +225,7 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
     >
       <mesh castShadow>
         <sphereGeometry args={[radius, 32, 32]} />
-        <meshStandardMaterial color="cyan" />
+        <meshStandardMaterial color="white" map={texture} />
       </mesh>
       {/* Başlamadan önce fırlatma yönünü gösteren ok */}
       {!started && <LaunchArrow angle={angle} velocity={velocity} />}
@@ -454,7 +463,6 @@ export default function ProjectileMotion() {
           shadow-camera-near={0.5} shadow-camera-far={100}
           shadow-mapSize={[2048, 2048]}
         />
-        <gridHelper args={[300, 100, "#444444", "#222222"]} position={[123, 0.01, 0]} />
         <OrbitControls makeDefault />
 
         <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60}>

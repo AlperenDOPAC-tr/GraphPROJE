@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react"
+import * as THREE from "three"
 import { Canvas } from "@react-three/fiber"
 import { Physics, useBox } from "@react-three/cannon"
 import { OrbitControls, Text } from "@react-three/drei"
+import { getGroundTexture, getCubeTexture } from "./utils"
 
 const Controls = ({ 
   mass1, setMass1, mass2, setMass2, 
@@ -63,10 +65,13 @@ const Controls = ({
 
 function Ground() {
   const [ref] = useBox(() => ({ type: "Static", args: [40, 1, 40], position: [0, -0.5, 0] }))
+  
+  const texture = React.useMemo(() => getGroundTexture(10, 10), []);
+
   return (
     <mesh ref={ref} receiveShadow>
       <boxGeometry args={[40, 1, 40]} />
-      <meshStandardMaterial color="#eeeeee" />
+      <meshStandardMaterial color="#ffffff" map={texture} />
     </mesh>
   )
 }
@@ -77,6 +82,8 @@ function FallingCube({ position, color, mass, started, airRes, onHit }) {
 
   // Hava sürtünmesi etkisi (Kütle arttıkça yavaşlama azalır)
   const dampingValue = airRes ? (1 - (mass / 101)) * 0.85 : 0;
+  
+  const texture = React.useMemo(() => getCubeTexture(color), [color]);
 
   const [ref] = useBox(() => ({ 
     mass: started ? mass : 0, 
@@ -94,14 +101,14 @@ function FallingCube({ position, color, mass, started, airRes, onHit }) {
   return (
     <mesh ref={ref} castShadow>
       <boxGeometry args={size} />
-      <meshStandardMaterial color={color} />
+      <meshStandardMaterial color="white" map={texture} />
       
       <Text
         position={[0, 0, 1.01]} 
         fontSize={0.5}
         color="white"
         fontWeight="bold"    // <--- Yazıyı kalınlaştırır
-        outlineWidth={0.02}  // <--- Opsiyonel: Yazıyı daha da belirgin yapar
+        outlineWidth={0.07}  // <--- Opsiyonel: Yazıyı daha da belirgin yapar
         outlineColor="black" // <--- Opsiyonel: Yazı etrafına ince siyah hat çeker
         anchorX="center"
         anchorY="middle"
@@ -196,7 +203,6 @@ export default function App() {
           shadow-mapSize={[2048, 2048]} 
         />
         
-        <gridHelper args={[60, 60, "#444444", "#222222"]} position={[0, 0.01, 0]} />
         <OrbitControls makeDefault />
         
         <Physics gravity={[0, -9.81, 0]} key={started ? 'active' : 'idle'}>
