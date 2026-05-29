@@ -384,11 +384,11 @@ export default function ProjectileMotion() {
       
       {/* KONTROL PANELİ */}
       <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
-        <div style={{ background: '#ffffff', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px', color: '#333' }}>
+        <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px', color: '#333' }}>
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>PROJECTILE MOTION</h3>
 
           {/* AYARLAR */}
-          <div style={{ background: '#f5f5f5', padding: '10px', borderRadius: '8px' }}>
+          <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>
               TOWER HEIGHT: {towerHeight}m
             </label>
@@ -421,25 +421,6 @@ export default function ProjectileMotion() {
             <input type="range" min="1" max="100" step="1"
               value={mass} onChange={e => setMass(Number(e.target.value))}
               disabled={started} style={{ width: '100%' }} />
-          </div>
-
-          {/* IŞIK AYARLARI */}
-          <div style={{ background: '#f5f5f5', padding: '10px', borderRadius: '8px', color: '#333' }}>
-            <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', textAlign: 'center', borderBottom: '1px solid #ddd', paddingBottom: '4px' }}>LIGHT SETTINGS</h4>
-            
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
-              LIGHT ANGLE: {lightAngle}°
-            </label>
-            <input type="range" min="0" max="360" step="1"
-              value={lightAngle} onChange={e => setLightAngle(Number(e.target.value))}
-              style={{ width: '100%', marginBottom: '10px' }} />
-
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
-              LIGHT INTENSITY: {lightIntensity.toFixed(1)}
-            </label>
-            <input type="range" min="0" max="3" step="0.1"
-              value={lightIntensity} onChange={e => setLightIntensity(Number(e.target.value))}
-              style={{ width: '100%' }} />
           </div>
 
           {/* SONUÇLAR / CANLI TAKİP */}
@@ -485,6 +466,19 @@ export default function ProjectileMotion() {
               CLEAR TRAILS
             </button>
           )}
+        </div>
+      </div>
+
+      <div style={{ position: 'absolute', bottom: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
+        <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px' }}>
+          <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>LIGHT CONTROLS</h3>
+          <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>LIGHT ANGLE: {lightAngle}°</label>
+            <input type="range" min="0" max="360" step="1" value={lightAngle} onChange={e => setLightAngle(Number(e.target.value))} style={{ width: '100%', marginBottom: '10px' }} />
+
+            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>LIGHT INTENSITY: {lightIntensity.toFixed(1)}</label>
+            <input type="range" min="0" max="3" step="0.1" value={lightIntensity} onChange={e => setLightIntensity(Number(e.target.value))} style={{ width: '100%' }} />
+          </div>
         </div>
       </div>
 
