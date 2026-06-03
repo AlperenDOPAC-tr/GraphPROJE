@@ -6,6 +6,7 @@ import {
 } from "@react-three/rapier"
 import { OrbitControls, Text, Billboard } from "@react-three/drei"
 import { getGroundTexture } from "./utils"
+import SpotLightFixture from "./SpotLightFixture"
 
 // ─── SABİTLER ──────────────────────────────────────────────────────────────
 const DT         = 1 / 60             // Rapier sabit fizik adımı (s)
@@ -446,6 +447,7 @@ export default function InclinedPlane() {
           shadow-mapSize={[2048, 2048]}
         />
         <OrbitControls makeDefault />
+        <SpotLightFixture lightPos={lightPos} intensity={lightIntensity} />
 
         {/*
           key: her yeni simülasyon için Physics tamamen sıfırlanır

@@ -4,6 +4,7 @@ import { Canvas, useFrame } from "@react-three/fiber"
 import { Physics, useBox } from "@react-three/cannon"
 import { OrbitControls, Text, Billboard } from "@react-three/drei"
 import { getGroundTexture, getCubeTexture } from "./utils"
+import SpotLightFixture from "./SpotLightFixture"
 
 const Controls = ({ 
   mass1, setMass1, mass2, setMass2, 
@@ -264,6 +265,7 @@ export default function App() {
         />
         
         <OrbitControls makeDefault />
+        <SpotLightFixture lightPos={lightPos} intensity={lightInt} />
         
         <Physics gravity={[0, -gravity, 0]} key={started ? 'active' : 'idle'}>
           <Ground />

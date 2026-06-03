@@ -1,9 +1,64 @@
 import React, { useState, useRef } from "react"
 import * as THREE from "three"
-import { Canvas, useFrame } from "@react-three/fiber"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep } from "@react-three/rapier"
 import { OrbitControls, Text, Billboard, Line } from "@react-three/drei"
 import { getGroundTexture, getSphereTexture, getTowerTexture } from "./utils"
+import SpotLightFixture from "./SpotLightFixture"
+
+// ─── GÜNEŞ IŞIĞI (directionalLight + kule merkezli gölge) ──────────────────
+function SunLight({ lightAngle, intensity, towerX = -25, towerHeight = 0 }) {
+  const lightRef = useRef()
+  const { scene } = useThree()
+
+  // Target Object3D'yi sahneye ekle — Three.js'de bu zorunludur
+  React.useEffect(() => {
+    if (lightRef.current) {
+      scene.add(lightRef.current.target)
+      return () => {
+        if (lightRef.current) {
+          scene.remove(lightRef.current.target)
+        }
+      }
+    }
+  }, [scene])
+
+  // Işığın baktığı nokta = kulenin tabanı
+  const targetX = towerX
+  const targetY = 0
+  const targetZ = 0
+
+  // Işık, kulenin etrafında döner (yarıçap 50, yükseklik 50)
+  const rad = lightAngle * Math.PI / 180
+  const lightX = targetX + Math.cos(rad) * 50
+  const lightY = 50
+  const lightZ = targetZ + Math.sin(rad) * 50
+
+  // Target pozisyonunu her açı değişiminde güncelle
+  React.useEffect(() => {
+    if (lightRef.current) {
+      lightRef.current.target.position.set(targetX, targetY, targetZ)
+      lightRef.current.target.updateMatrixWorld()
+    }
+  }, [lightAngle, targetX, targetY, targetZ])
+
+  return (
+    <directionalLight
+      ref={lightRef}
+      position={[lightX, lightY, lightZ]}
+      intensity={intensity}
+      castShadow
+      shadow-camera-left={-150}
+      shadow-camera-right={150}
+      shadow-camera-top={100}
+      shadow-camera-bottom={-100}
+      shadow-camera-near={0.5}
+      shadow-camera-far={500}
+      shadow-mapSize={[4096, 4096]}
+      shadow-bias={-0.001}
+    />
+  )
+}
 
 // ─── ZEMİN ─────────────────────────────────────────────────────────────────
 function Ground() {
@@ -486,16 +541,13 @@ export default function ProjectileMotion() {
       <Canvas shadows camera={{ position: [0, 20, 50], fov: 45 }} style={{ background: "#000000" }}>
         <color attach="background" args={["#000000"]} />
         <ambientLight intensity={0.6} />
-        <directionalLight
-          position={[Math.cos(lightAngle * Math.PI / 180) * 50, 40, Math.sin(lightAngle * Math.PI / 180) * 50]} 
-          intensity={lightIntensity} 
-          castShadow
-          shadow-camera-left={-40} shadow-camera-right={40}
-          shadow-camera-top={40}  shadow-camera-bottom={-40}
-          shadow-camera-near={0.5} shadow-camera-far={100}
-          shadow-mapSize={[2048, 2048]}
-        />
+        <SunLight lightAngle={lightAngle} intensity={lightIntensity} towerX={towerX} towerHeight={towerHeight} />
         <OrbitControls makeDefault />
+        <SpotLightFixture lightPos={[
+          towerX + Math.cos(lightAngle * Math.PI / 180) * 50,
+          50,
+          Math.sin(lightAngle * Math.PI / 180) * 50
+        ]} target={[towerX, 0, 0]} intensity={lightIntensity} />
 
         <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60}>
           <PhysicsClock started={started} onTick={handleTick} />
