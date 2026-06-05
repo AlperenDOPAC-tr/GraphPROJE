@@ -1,7 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text, Line } from '@react-three/drei'
-import { LightBulbIcon } from './Icons'
+import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import ClockScaler from './ClockScaler'
 import * as THREE from 'three'
 import { getGroundTexture } from './utils'
 
@@ -168,7 +169,7 @@ function Room() {
 }
 
 // Simülasyon Yöneticisi
-function SimulationEngine({ started, g, pL, pM, sK, sM, setPState, setSState }) {
+function SimulationEngine({ started, isPaused, g, pL, pM, sK, sM, setPState, setSState }) {
   const timeRef = useRef(0)
   
   // Başlangıç değerleri
@@ -189,6 +190,8 @@ function SimulationEngine({ started, g, pL, pM, sK, sM, setPState, setSState }) 
       setSState({ y: yEq - amplitude, v: 0 })
       return
     }
+
+    if (isPaused) return
 
     const dt = Math.min(delta, 1/30)
     timeRef.current += dt
@@ -215,6 +218,9 @@ function SimulationEngine({ started, g, pL, pM, sK, sM, setPState, setSState }) 
 // ─── MAIN APP COMPONENT ──────────────────────────────────────────────────────
 export default function HarmonicMotion() {
   const [started, setStarted] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
+  const [timeScale, setTimeScale] = useState(1)
   
   const [g, setG] = useState(9.8)
   
@@ -318,50 +324,111 @@ export default function HarmonicMotion() {
         </div>
       </div>
 
+      {/* Zamanı Durdur (Freeze) Butonu */}
+      <button
+        onClick={() => setIsPaused(!isPaused)}
+        style={{
+          position: 'absolute',
+          top: '194px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Freeze Time"
+      >
+        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+      </button>
+
+      {/* Hız Kontrol (Slow Motion) Butonu */}
+      <button
+        onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '252px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: speedPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Time Speed"
+      >
+        <SpeedIcon width={24} height={24} fill={speedPanelOpen ? '#000000' : '#ffffff'} />
+      </button>
+
+      {speedPanelOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '252px',
+          right: '82px',
+          zIndex: 999,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          border: '1px solid #eee',
+          width: '200px',
+          fontFamily: 'sans-serif',
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>TIME SPEED</h4>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>SPEED: {timeScale.toFixed(2)}x</label>
+          <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
+        </div>
+      )}
+
       {/* Işık Kontrol Butonu */}
       <button
-  onClick={() => setLightPanelOpen(!lightPanelOpen)}
-  style={{
-    position: 'absolute',
-    top: '78px',
-    right: '24px',
-    zIndex: 1000,
-    width: '48px',
-    height: '48px',
-    borderRadius: '14px',
-    border: 'none',
-    background: lightPanelOpen
-      ? 'rgba(255,200,0,0.9)'
-      : 'rgba(15, 15, 20, 0.85)',
-    backdropFilter: 'blur(12px)',
-    cursor: 'pointer',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-    transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
-    fontSize: '22px',
-  }}
-  title="Light Controls"
->
-  <img
-    src="https://www.svgrepo.com/show/20845/bright-light-bulb.svg"
-    alt="Light Icon"
-    style={{
-      width: '24px',
-      height: '24px',
-      filter: lightPanelOpen
-        ? 'drop-shadow(0 0 4px rgba(255,200,0,0.9))'
-        : 'none',
-    }}
-  />
-</button>
+        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '136px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+          fontSize: '22px',
+        }}
+        title="Light Controls"
+      >
+        <LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} />
+      </button>
 
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
           top: '136px',
-          right: '24px',
+          right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(8px)',
@@ -383,6 +450,7 @@ export default function HarmonicMotion() {
       {/* ─── 3D SCENE ──────────────────────────────────────────────────────── */}
       <Canvas shadows camera={{ position: [0, 2, 25], fov: 50 }}>
         <color attach="background" args={['#111']} />
+        <ClockScaler timeScale={timeScale} />
         
         <ambientLight intensity={0.5} />
         <directionalLight 
@@ -401,7 +469,7 @@ export default function HarmonicMotion() {
         <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 + 0.2} />
 
         <SimulationEngine 
-          started={started} g={g} 
+          started={started} isPaused={isPaused} g={g} 
           pL={pL} pM={pM} setPState={setPState}
           sK={sK} sM={sM} setSState={setSState}
         />

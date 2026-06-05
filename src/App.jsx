@@ -5,7 +5,9 @@ import ProjectileMotion from "./ProjectileMotion"
 import ForceVectors from "./ForceVectors"
 import CollisionMomentum from "./CollisionMomentum"
 import OpticsSimulation from "./OpticsSimulation"
+import OpticsInterference from "./OpticsInterference"
 import HarmonicMotion from "./HarmonicMotion"
+import AngularMomentum from "./AngularMomentum"
 
 const simulations = [
   { id: "falling", name: "Free Fall", image: "/images/freefall.jpg" },
@@ -14,12 +16,29 @@ const simulations = [
   { id: "forces", name: "Force Vectors", image: "/images/forcevectors.jpg" },
   { id: "collision", name: "Collision", image: "/images/collision.jpg" },
   { id: "optics", name: "Optics & Mirrors", image: "/images/optics.jpg" },
+  { id: "interference", name: "Double & Single Slit", image: "/images/doubleslit.jpg" },
   { id: "harmonic", name: "Harmonic Motion", image: "/images/harmonic.png" },
+  { id: "angular", name: "Angular Momentum", image: "/images/angular.png" },
 ]
 
 export default function App() {
   const [mode, setMode] = useState("falling")
   const [menuOpen, setMenuOpen] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  React.useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', handleFullscreenChange)
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
+  }, [])
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(err => console.error(err))
+    } else if (document.exitFullscreen) {
+      document.exitFullscreen()
+    }
+  }
 
   const handleSelect = (id) => {
     setMode(id)
@@ -28,18 +47,32 @@ export default function App() {
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#fff" }}>
-      {/* MENÜ BUTONU - Sağ üst */}
+      {/* MENÜ AÇMA BUTONU */}
       <button
         id="menu-toggle-btn"
         onClick={() => setMenuOpen(!menuOpen)}
         style={menuToggleStyle}
-        title="Simulations"
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
           <span style={barStyle(menuOpen, 0)} />
           <span style={barStyle(menuOpen, 1)} />
           <span style={barStyle(menuOpen, 2)} />
         </div>
+      </button>
+
+      {/* FULLSCREEN BUTONU */}
+      <button
+        onClick={toggleFullscreen}
+        style={{
+          ...menuToggleStyle,
+          top: '78px',
+          background: isFullscreen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+        }}
+        title="Toggle Fullscreen"
+      >
+        <svg fill={isFullscreen ? '#000000' : '#ffffff'} width="24" height="24" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1146.616-.012V232.38h376.821L232.391 1523.309v-376.705H0V1920h773.629v-232.39H396.69L1687.737 396.68V773.5h232.275V-.011z" fillRule="evenodd"></path>
+        </svg>
       </button>
 
       {/* OVERLAY */}
@@ -83,7 +116,9 @@ export default function App() {
       {mode === "forces" && <ForceVectors />}
       {mode === "collision" && <CollisionMomentum />}
       {mode === "optics" && <OpticsSimulation />}
-      {mode === "harmonic" && <HarmonicMotion />}
+      { mode === "interference" && <OpticsInterference /> }
+      { mode === "harmonic" && <HarmonicMotion /> }
+      { mode === "angular" && <AngularMomentum /> }
     </div>
   )
 }

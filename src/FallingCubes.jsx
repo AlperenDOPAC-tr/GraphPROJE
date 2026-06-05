@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react"
-import { LightBulbIcon } from './Icons'
+import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Physics, useBox } from "@react-three/cannon"
@@ -15,7 +16,10 @@ const Controls = ({
   lightInt, setLightInt, 
   lightDir, setLightDir,
   lightPanelOpen, setLightPanelOpen,
-  started, running, onStart, onReset, times 
+  started, running, onStart, onReset, times,
+  isPaused, setIsPaused,
+  speedPanelOpen, setSpeedPanelOpen,
+  timeScale, setTimeScale
 }) => {
   const finished = started && !running.r1 && !running.r2;
   return (
@@ -75,19 +79,92 @@ const Controls = ({
     </div>
   </div>
 
-  {/* Işık Kontrol Butonu */}
+  {/* Zamanı Durdur (Freeze) Butonu */}
   <button
-    onClick={() => setLightPanelOpen(!lightPanelOpen)}
+    onClick={() => setIsPaused(!isPaused)}
     style={{
       position: 'absolute',
-      top: '78px',
+      top: '194px',
       right: '24px',
       zIndex: 1000,
       width: '48px',
       height: '48px',
       borderRadius: '14px',
       border: 'none',
-      background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+      background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+      backdropFilter: 'blur(12px)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+    }}
+    title="Freeze Time"
+  >
+    <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+  </button>
+
+  {/* Hız Kontrol (Slow Motion) Butonu */}
+  <button
+    onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
+    style={{
+      position: 'absolute',
+      top: '252px',
+      right: '24px',
+      zIndex: 1000,
+      width: '48px',
+      height: '48px',
+      borderRadius: '14px',
+      border: 'none',
+      background: speedPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+      backdropFilter: 'blur(12px)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+    }}
+    title="Time Speed"
+  >
+    <SpeedIcon width={24} height={24} fill={speedPanelOpen ? '#000000' : '#ffffff'} />
+  </button>
+
+  {speedPanelOpen && (
+    <div style={{
+      position: 'absolute',
+      top: '252px',
+      right: '82px',
+      zIndex: 999,
+      background: 'rgba(255,255,255,0.85)',
+      backdropFilter: 'blur(8px)',
+      padding: '16px',
+      borderRadius: '12px',
+      boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+      border: '1px solid #eee',
+      width: '200px',
+      fontFamily: 'sans-serif',
+    }}>
+      <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>TIME SPEED</h4>
+      <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>SPEED: {timeScale.toFixed(2)}x</label>
+      <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
+    </div>
+  )}
+
+  {/* Işık Kontrol Butonu */}
+  <button
+    onClick={() => setLightPanelOpen(!lightPanelOpen)}
+    style={{
+      position: 'absolute',
+      top: '136px',
+      right: '24px',
+      zIndex: 1000,
+      width: '48px',
+      height: '48px',
+      borderRadius: '14px',
+      border: 'none',
+      background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
       backdropFilter: 'blur(12px)',
       cursor: 'pointer',
       display: 'flex',
@@ -104,7 +181,7 @@ const Controls = ({
     <div style={{
       position: 'absolute',
       top: '136px',
-      right: '24px',
+      right: '82px',
       zIndex: 999,
       background: 'rgba(255,255,255,0.85)',
       backdropFilter: 'blur(8px)',
@@ -233,6 +310,9 @@ export default function App() {
   const [lightDir, setLightDir] = useState(45)
   const [lightPanelOpen, setLightPanelOpen] = useState(false)
   const [started, setStarted] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
+  const [timeScale, setTimeScale] = useState(1)
   const [times, setTimes] = useState({ t1: 0, t2: 0 })
   const [running, setRunning] = useState({ r1: false, r2: false })
   
@@ -253,17 +333,20 @@ export default function App() {
 
   useEffect(() => {
     let interval
-    if (running.r1 || running.r2) {
+    let lastTime = Date.now()
+    if ((running.r1 || running.r2) && !isPaused) {
       interval = setInterval(() => {
-        const totalElapsed = (Date.now() - startTimeRef.current) / 1000
+        const now = Date.now()
+        const dt = ((now - lastTime) / 1000) * timeScale
+        lastTime = now
         setTimes(prev => ({
-          t1: running.r1 ? totalElapsed : prev.t1,
-          t2: running.r2 ? totalElapsed : prev.t2
+          t1: running.r1 ? prev.t1 + dt : prev.t1,
+          t2: running.r2 ? prev.t2 + dt : prev.t2
         }))
       }, 10)
     }
     return () => clearInterval(interval)
-  }, [running.r1, running.r2])
+  }, [running.r1, running.r2, isPaused, timeScale])
 
   const lightRadius = 25
   const lightPos = [
@@ -283,11 +366,14 @@ export default function App() {
         lightDir={lightDir} setLightDir={setLightDir}
         lightPanelOpen={lightPanelOpen} setLightPanelOpen={setLightPanelOpen}
         started={started} running={running} onStart={startSimulation} onReset={resetSimulation}
-        times={times}
+        times={times} isPaused={isPaused} setIsPaused={setIsPaused}
+        speedPanelOpen={speedPanelOpen} setSpeedPanelOpen={setSpeedPanelOpen}
+        timeScale={timeScale} setTimeScale={setTimeScale}
       />
       
       <Canvas shadows camera={{ position: [30, 25, 30], fov: 35 }} style={{ background: "#000000" }}>
         <color attach="background" args={["#000000"]} />
+        <ClockScaler timeScale={timeScale} />
         <ambientLight intensity={0.6} />
         
         <directionalLight 
@@ -306,7 +392,7 @@ export default function App() {
         <OrbitControls makeDefault />
         <SpotLightFixture lightPos={lightPos} intensity={lightInt} />
         
-        <Physics gravity={[0, -gravity, 0]} key={started ? 'active' : 'idle'}>
+        <Physics isPaused={isPaused} gravity={[0, -gravity, 0]} key={started ? 'active' : 'idle'}>
           <Ground />
           <HeightChart maxHeight={50} />
           {/* Küpler arası mesafe boyut büyüdüğü için biraz açıldı */}

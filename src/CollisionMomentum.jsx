@@ -1,17 +1,18 @@
 import React, { useState, useMemo, useRef, useEffect } from "react"
-import { LightBulbIcon } from './Icons'
+import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { OrbitControls, Text, Billboard } from "@react-three/drei"
+import { OrbitControls, Text, Billboard, Edges } from "@react-three/drei"
 import { getGroundTexture, getCubeTexture } from "./utils"
 import SpotLightFixture from "./SpotLightFixture"
 
 // ─── SABİTLER ────────────────────────────────────────────────────────────────
 const CUBE_SIZE = 2
-const CUBE1_COLOR = '#d81b60'
-const CUBE2_COLOR = '#00acc1'
-const CUBE1_ARROW = '#ff4081'
-const CUBE2_ARROW = '#00e5ff'
+const CUBE1_COLOR = '#ff6d00' // Orange
+const CUBE2_COLOR = '#76ff03' // Light Green
+const CUBE1_ARROW = '#ffa000'
+const CUBE2_ARROW = '#b2ff59'
 
 // ─── GÜNEŞ IŞIĞI ─────────────────────────────────────────────────────────────
 function SunLight({ lightAngle, intensity }) {
@@ -127,7 +128,7 @@ function VelocityArrow({ posX, posZ, vx, vz, color, label }) {
       </mesh>
       {/* Etiket */}
       <Billboard position={[length / 2, 0.6, 0]}>
-        <Text fontSize={0.32} color={color} fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
+        <Text fontSize={0.32} color="white" fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
           {label}
         </Text>
       </Billboard>
@@ -138,10 +139,10 @@ function VelocityArrow({ posX, posZ, vx, vz, color, label }) {
 // ─── 3D SAHNE ────────────────────────────────────────────────────────────────
 function Scene({
   cube1, cube2, setCube1, setCube2,
-  started, collisionType,
+  started, isPaused, collisionType,
   simData, setSimData,
   collided, setCollided,
-  lightAngle, lightIntensity,
+  lightAngle, lightIntensity
 }) {
   const { camera, gl } = useThree()
   const controlsRef = useRef()
@@ -157,9 +158,7 @@ function Scene({
   const collidedRef = useRef(false)
   const mergedRef = useRef(false)
 
-  // Dokular
-  const tex1 = useMemo(() => getCubeTexture(CUBE1_COLOR), [])
-  const tex2 = useMemo(() => getCubeTexture(CUBE2_COLOR), [])
+  // Dokular iptal edildi, doğrudan renk kullanılacak
 
   // Raycasting düzlemi (y=0, zeminde)
   const groundPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), [])
@@ -243,6 +242,8 @@ function Scene({
       if (group2Ref.current) group2Ref.current.position.set(cube2.x, 1, cube2.z)
       return
     }
+
+    if (isPaused) return
 
     const dt = Math.min(delta, 1 / 30)
 
@@ -362,11 +363,18 @@ function Scene({
           onPointerLeave={() => { if (!draggingRef.current) gl.domElement.style.cursor = 'default' }}
         >
           <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
-          <meshStandardMaterial color="white" map={tex1} />
+          <meshStandardMaterial 
+            color={CUBE1_COLOR} 
+            emissive={CUBE1_COLOR}
+            emissiveIntensity={0.2}
+            roughness={0.15} 
+            metalness={0.6}
+          />
+          <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
         </mesh>
         {/* Kütle etiketi */}
         <Billboard position={[0, 1.6, 0]}>
-          <Text fontSize={0.45} color={CUBE1_COLOR} fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
+          <Text fontSize={0.45} color="white" fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
             {cube1.mass} kg
           </Text>
         </Billboard>
@@ -381,10 +389,17 @@ function Scene({
           onPointerLeave={() => { if (!draggingRef.current) gl.domElement.style.cursor = 'default' }}
         >
           <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
-          <meshStandardMaterial color="white" map={tex2} />
+          <meshStandardMaterial 
+            color={CUBE2_COLOR} 
+            emissive={CUBE2_COLOR}
+            emissiveIntensity={0.2}
+            roughness={0.15} 
+            metalness={0.6}
+          />
+          <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
         </mesh>
         <Billboard position={[0, 1.6, 0]}>
-          <Text fontSize={0.45} color={CUBE2_COLOR} fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
+          <Text fontSize={0.45} color="white" fontWeight="bold" outlineWidth={0.02} outlineColor="#000">
             {cube2.mass} kg
           </Text>
         </Billboard>
@@ -403,6 +418,9 @@ export default function CollisionMomentum() {
   const [cube2, setCube2] = useState({ x: 8, z: 0, mass: 25, speed: 8, angle: 180 })
   const [collisionType, setCollisionType] = useState('elastic')
   const [started, setStarted] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
+  const [timeScale, setTimeScale] = useState(1)
   const [collided, setCollided] = useState(false)
   const [simData, setSimData] = useState(null)
 
@@ -453,7 +471,7 @@ export default function CollisionMomentum() {
           <div style={cardStyle(CUBE1_COLOR, collided)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <div style={{ width: 14, height: 14, borderRadius: '50%', background: CUBE1_COLOR }} />
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#222' }}>CUBE 1 (PINK)</span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#222' }}>CUBE 1 (ORANGE)</span>
             </div>
 
             <label style={lblStyle}>POSITION X: {cube1.x.toFixed(1)}</label>
@@ -484,11 +502,11 @@ export default function CollisionMomentum() {
             {/* Momentum göstergesi */}
             <div style={{ marginTop: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label style={{ ...lblStyle, color: CUBE1_COLOR }}>MOMENTUM:</label>
-                <label style={{ ...lblStyle, color: CUBE1_COLOR }}>{p1_now.toFixed(1)} / 1000</label>
+                <label style={{ ...lblStyle, color: '#ff1744' }}>MOMENTUM:</label>
+                <label style={{ ...lblStyle, color: '#ff1744' }}>{p1_now.toFixed(1)} / 1000</label>
               </div>
               <div style={barBgStyle}>
-                <div style={{ ...barFillStyle, width: `${(p1_now / maxP) * 100}%`, background: CUBE1_COLOR }} />
+                <div style={{ ...barFillStyle, width: `${(p1_now / maxP) * 100}%`, background: '#ff1744' }} />
               </div>
             </div>
           </div>
@@ -497,7 +515,7 @@ export default function CollisionMomentum() {
           <div style={cardStyle(CUBE2_COLOR, collided)}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
               <div style={{ width: 14, height: 14, borderRadius: '50%', background: CUBE2_COLOR }} />
-              <span style={{ fontSize: '12px', fontWeight: '700', color: '#222' }}>CUBE 2 (CYAN)</span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#222' }}>CUBE 2 (GREEN)</span>
             </div>
 
             <label style={lblStyle}>POSITION X: {cube2.x.toFixed(1)}</label>
@@ -527,11 +545,11 @@ export default function CollisionMomentum() {
 
             <div style={{ marginTop: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <label style={{ ...lblStyle, color: CUBE2_COLOR }}>MOMENTUM:</label>
-                <label style={{ ...lblStyle, color: CUBE2_COLOR }}>{p2_now.toFixed(1)} / 1000</label>
+                <label style={{ ...lblStyle, color: '#ff1744' }}>MOMENTUM:</label>
+                <label style={{ ...lblStyle, color: '#ff1744' }}>{p2_now.toFixed(1)} / 1000</label>
               </div>
               <div style={barBgStyle}>
-                <div style={{ ...barFillStyle, width: `${(p2_now / maxP) * 100}%`, background: CUBE2_COLOR }} />
+                <div style={{ ...barFillStyle, width: `${(p2_now / maxP) * 100}%`, background: '#ff1744' }} />
               </div>
             </div>
           </div>
@@ -615,19 +633,92 @@ export default function CollisionMomentum() {
         </div>
       </div>
 
-      {/* ─── IŞIK KONTROLLERİ BUTONU (SAĞ ÜST) ────────────────────────── */}
+      {/* Zamanı Durdur (Freeze) Butonu */}
       <button
-        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        onClick={() => setIsPaused(!isPaused)}
         style={{
           position: 'absolute',
-          top: '78px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Freeze Time"
+      >
+        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+      </button>
+
+      {/* Hız Kontrol (Slow Motion) Butonu */}
+      <button
+        onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '252px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: speedPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Time Speed"
+      >
+        <SpeedIcon width={24} height={24} fill={speedPanelOpen ? '#000000' : '#ffffff'} />
+      </button>
+
+      {speedPanelOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '252px',
+          right: '82px',
+          zIndex: 999,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          border: '1px solid #eee',
+          width: '200px',
+          fontFamily: 'sans-serif',
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>TIME SPEED</h4>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>SPEED: {timeScale.toFixed(2)}x</label>
+          <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {/* ─── IŞIK KONTROLLERİ BUTONU (SAĞ ÜST) ────────────────────────── */}
+      <button
+        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '136px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -644,7 +735,7 @@ export default function CollisionMomentum() {
         <div style={{
           position: 'absolute',
           top: '136px',
-          right: '24px',
+          right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(8px)',
@@ -666,10 +757,11 @@ export default function CollisionMomentum() {
       {/* ─── 3D SAHNE ─────────────────────────────────────────────────── */}
       <Canvas shadows camera={{ position: [35, 28, 35], fov: 40 }} style={{ background: "#000000" }}>
         <color attach="background" args={["#000000"]} />
+        <ClockScaler timeScale={timeScale} />
         <Scene
           cube1={cube1} cube2={cube2}
           setCube1={setCube1} setCube2={setCube2}
-          started={started} collisionType={collisionType}
+          started={started} isPaused={isPaused} collisionType={collisionType}
           simData={simData} setSimData={setSimData}
           collided={collided} setCollided={setCollided}
           lightAngle={lightAngle} lightIntensity={lightIntensity}

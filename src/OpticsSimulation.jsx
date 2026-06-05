@@ -320,14 +320,14 @@ export default function OpticsSimulation() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '78px',
+          top: '136px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -343,7 +343,7 @@ export default function OpticsSimulation() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',

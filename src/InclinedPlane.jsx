@@ -1,13 +1,14 @@
 import React, { useState, useRef } from "react"
-import { LightBulbIcon } from './Icons'
+import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import {
   Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep
 } from "@react-three/rapier"
-import { OrbitControls, Text, Billboard } from "@react-three/drei"
+import { OrbitControls, Text, Billboard, Edges } from "@react-three/drei"
 import { getGroundTexture } from "./utils"
 import SpotLightFixture from "./SpotLightFixture"
+import ClockScaler from './ClockScaler'
 
 // ─── SABİTLER ──────────────────────────────────────────────────────────────
 const DT         = 1 / 60             // Rapier sabit fizik adımı (s)
@@ -56,11 +57,21 @@ function Ramp({ friction, angleRad, texture }) {
 }
 
 // ─── GÖRSEL CİSİM (BAŞLAT öncesi, fizik yok) ───────────────────────────────
-function CompetitorVisual({ type, pos, color, name, angleRad, texture }) {
+function CompetitorVisual({ type, pos, color, name, angleRad, texture, distribution }) {
+  const isHollowSphere = type === "sphere" && distribution === "hollow";
   return (
     <mesh position={pos} rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]} castShadow>
       {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-      <meshStandardMaterial color={texture ? "white" : color} map={texture || null} />
+      <meshStandardMaterial 
+        color={color} 
+        emissive={color}
+        emissiveIntensity={0.2}
+        roughness={0.15} 
+        metalness={0.6}
+        transparent={isHollowSphere}
+        opacity={isHollowSphere ? 0.3 : 1}
+      />
+      <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
       <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
             fontWeight="bold" outlineWidth={0.05} outlineColor="black">
         {name}
@@ -105,7 +116,16 @@ function CompetitorPhysics({ type, pos, color, name, friction, distribution, mas
     >
       <mesh castShadow>
         {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-        <meshStandardMaterial color={texture ? "white" : color} map={texture || null} />
+        <meshStandardMaterial 
+          color={color} 
+          emissive={color}
+          emissiveIntensity={0.2}
+          roughness={0.15} 
+          metalness={0.6}
+          transparent={type === "sphere" && distribution === "hollow"}
+          opacity={type === "sphere" && distribution === "hollow" ? 0.3 : 1}
+        />
+        <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
         <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
               fontWeight="bold" outlineWidth={0.05} outlineColor="black">
           {name}
@@ -142,8 +162,6 @@ function FinishSensor({ position, onHit, angleRad }) {
 // DT = 1/60 s → stepRef * DT = geçen fizik süresi (deterministik, kare hızından bağımsız).
 function PhysicsClock({ started, onTick }) {
   const stepRef = useRef(0)
-
-  // Ref'leri render'da güncelle → stale closure yok
   const startedRef = useRef(started); startedRef.current = started
   const onTickRef  = useRef(onTick);  onTickRef.current  = onTick
 
@@ -224,7 +242,6 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
 
   return (
     <>
-      <PhysicsClock started={started} onTick={onTick} />
       <Ground friction={friction} />
       <Ramp   friction={friction} angleRad={angleRad} texture={textures?.ramp} />
       <AngleIndicator side="left" angleRad={angleRad} />
@@ -240,7 +257,7 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
         /* BAŞLAT öncesi: saf görsel */
         <>
           <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE" angleRad={angleRad} texture={textures?.cube} />
-          <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} />
+          <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} distribution={distribution} />
         </>
       ) : (
         /* Simülasyon aktif: Rapier fizik + sensörler */
@@ -258,6 +275,9 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
 // ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function InclinedPlane() {
   const [started,  setStarted]  = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
+  const [timeScale, setTimeScale] = useState(1)
   const [rampAngleDeg, setRampAngleDeg] = useState(30)
   const [friction, setFriction] = useState(0.05)
   const [distribution, setDistribution] = useState("full")
@@ -425,19 +445,92 @@ export default function InclinedPlane() {
         </div>
       </div>
 
-      {/* Işık Kontrol Butonu */}
+      {/* Zamanı Durdur (Freeze) Butonu */}
       <button
-        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        onClick={() => setIsPaused(!isPaused)}
         style={{
           position: 'absolute',
-          top: '78px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Freeze Time"
+      >
+        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+      </button>
+
+      {/* Hız Kontrol (Slow Motion) Butonu */}
+      <button
+        onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '252px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: speedPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Time Speed"
+      >
+        <SpeedIcon width={24} height={24} fill={speedPanelOpen ? '#000000' : '#ffffff'} />
+      </button>
+
+      {speedPanelOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '252px',
+          right: '82px',
+          zIndex: 999,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          border: '1px solid #eee',
+          width: '200px',
+          fontFamily: 'sans-serif',
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>TIME SPEED</h4>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>SPEED: {timeScale.toFixed(2)}x</label>
+          <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {/* Işık Kontrol Butonu */}
+      <button
+        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '136px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -454,7 +547,7 @@ export default function InclinedPlane() {
         <div style={{
           position: 'absolute',
           top: '136px',
-          right: '24px',
+          right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(8px)',
@@ -484,6 +577,7 @@ export default function InclinedPlane() {
           shadow-mapSize={[2048, 2048]}
         />
         <OrbitControls makeDefault />
+        <ClockScaler timeScale={timeScale} />
         <SpotLightFixture lightPos={lightPos} intensity={lightIntensity} />
 
         {/*
@@ -494,6 +588,7 @@ export default function InclinedPlane() {
           key={started ? 'active' : 'idle'}
           gravity={[0, -9.81, 0]}
           timeStep={DT}
+          paused={isPaused}
         >
           <Scene
             friction={friction}
@@ -507,6 +602,7 @@ export default function InclinedPlane() {
             angleRad={rampAngleDeg * Math.PI / 180}
             textures={textures}
           />
+          <PhysicsClock started={started} onTick={handleTick} />
         </Physics>
       </Canvas>
     </div>

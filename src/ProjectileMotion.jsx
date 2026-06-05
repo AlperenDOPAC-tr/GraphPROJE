@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react"
-import { LightBulbIcon } from './Icons'
+import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep } from "@react-three/rapier"
@@ -303,6 +304,9 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
 // ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function ProjectileMotion() {
   const [started, setStarted] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
+  const [timeScale, setTimeScale] = useState(1)
   const [towerHeight, setTowerHeight] = useState(20)
   const [velocity, setVelocity] = useState(15)
   const [angle, setAngle] = useState(0)
@@ -526,19 +530,92 @@ export default function ProjectileMotion() {
         </div>
       </div>
 
-      {/* Işık Kontrol Butonu */}
+      {/* Zamanı Durdur (Freeze) Butonu */}
       <button
-        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        onClick={() => setIsPaused(!isPaused)}
         style={{
           position: 'absolute',
-          top: '78px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Freeze Time"
+      >
+        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+      </button>
+
+      {/* Hız Kontrol (Slow Motion) Butonu */}
+      <button
+        onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '252px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: speedPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Time Speed"
+      >
+        <SpeedIcon width={24} height={24} fill={speedPanelOpen ? '#000000' : '#ffffff'} />
+      </button>
+
+      {speedPanelOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '252px',
+          right: '82px',
+          zIndex: 999,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          border: '1px solid #eee',
+          width: '200px',
+          fontFamily: 'sans-serif',
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>TIME SPEED</h4>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>SPEED: {timeScale.toFixed(2)}x</label>
+          <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
+        </div>
+      )}
+
+      {/* Işık Kontrol Butonu */}
+      <button
+        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '136px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -555,7 +632,7 @@ export default function ProjectileMotion() {
         <div style={{
           position: 'absolute',
           top: '136px',
-          right: '24px',
+          right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(8px)',
@@ -580,13 +657,14 @@ export default function ProjectileMotion() {
         <ambientLight intensity={0.6} />
         <SunLight lightAngle={lightAngle} intensity={lightIntensity} towerX={towerX} towerHeight={towerHeight} />
         <OrbitControls makeDefault />
+        <ClockScaler timeScale={timeScale} />
         <SpotLightFixture lightPos={[
           towerX + Math.cos(lightAngle * Math.PI / 180) * 50,
           50,
           Math.sin(lightAngle * Math.PI / 180) * 50
         ]} target={[towerX, 0, 0]} intensity={lightIntensity} />
 
-        <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60}>
+        <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60} paused={isPaused}>
           <PhysicsClock started={started} onTick={handleTick} />
           <Ground />
           <Tower height={towerHeight} position={[towerX, 0, 0]} />

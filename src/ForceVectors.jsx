@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from "react"
 import { LightBulbIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
-import { OrbitControls, Text, Billboard, Line, MeshReflectorMaterial } from "@react-three/drei"
+import { OrbitControls, Text, Billboard, Line } from "@react-three/drei"
 import SpotLightFixture from "./SpotLightFixture"
 
 // ─── RENK PALETİ ────────────────────────────────────────────────────────────
@@ -67,23 +67,7 @@ function SunLight({ lightAngle, intensity }) {
 
 // ─── ZEMİN ───────────────────────────────────────────────────────────────────
 function Ground() {
-  return (
-    <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-      <planeGeometry args={[30, 30]} />
-      <MeshReflectorMaterial
-        blur={[300, 100]}
-        resolution={1024}
-        mixBlur={1}
-        mixStrength={40}
-        roughness={1}
-        depthScale={1.2}
-        minDepthThreshold={0.4}
-        maxDepthThreshold={1.4}
-        color="#111111"
-        metalness={0.5}
-      />
-    </mesh>
-  )
+  return null
 }
 
 // ─── 3D KUVVET OKU ───────────────────────────────────────────────────────────
@@ -106,9 +90,8 @@ function ForceArrow({ magnitude, angle, color, isResultant = false, isSelected =
         <boxGeometry args={[shaftLength, shaftW, shaftW]} />
         <meshStandardMaterial
           color={color}
-          emissive={color}
-          emissiveIntensity={isSelected ? 0.9 : isResultant ? 0.5 : 0.3}
-          toneMapped={false}
+          roughness={0.4}
+          metalness={0.2}
         />
       </mesh>
       {/* Ok Ucu */}
@@ -120,9 +103,8 @@ function ForceArrow({ magnitude, angle, color, isResultant = false, isSelected =
         <coneGeometry args={[headRadius, headLength, 16]} />
         <meshStandardMaterial
           color={color}
-          emissive={color}
-          emissiveIntensity={isSelected ? 0.9 : isResultant ? 0.5 : 0.3}
-          toneMapped={false}
+          roughness={0.4}
+          metalness={0.2}
         />
       </mesh>
       {/* Seçili glow efekti */}
@@ -199,11 +181,11 @@ function Axes({ range = 10 }) {
           {/* Tick çizgisi */}
           <mesh position={[i, y, 0]}>
             <boxGeometry args={[0.04, 0.02, tickSize * 2]} />
-            <meshBasicMaterial color="#333333" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
           {/* Sayı etiketi */}
           <Billboard position={[i, y + 0.05, 0.45]}>
-            <Text fontSize={0.28} color="#444444" outlineWidth={0.015} outlineColor="#ffffff">
+            <Text fontSize={0.28} color="#ffffff" outlineWidth={0.015} outlineColor="#000000">
               {i}
             </Text>
           </Billboard>
@@ -222,11 +204,11 @@ function Axes({ range = 10 }) {
           {/* Tick çizgisi */}
           <mesh position={[0, y, -i]}>
             <boxGeometry args={[tickSize * 2, 0.02, 0.04]} />
-            <meshBasicMaterial color="#333333" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
           {/* Sayı etiketi */}
           <Billboard position={[-0.45, y + 0.05, -i]}>
-            <Text fontSize={0.28} color="#444444" outlineWidth={0.015} outlineColor="#ffffff">
+            <Text fontSize={0.28} color="#ffffff" outlineWidth={0.015} outlineColor="#000000">
               {i}
             </Text>
           </Billboard>
@@ -241,40 +223,40 @@ function Axes({ range = 10 }) {
       {/* X Ekseni çizgisi */}
       <mesh position={[0, y, 0]}>
         <boxGeometry args={[range * 2 + 0.6, 0.06, 0.06]} />
-        <meshBasicMaterial color="#d32f2f" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       {/* Y Ekseni çizgisi (Three.js -Z yönünde) */}
       <mesh position={[0, y, 0]}>
         <boxGeometry args={[0.06, 0.06, range * 2 + 0.6]} />
-        <meshBasicMaterial color="#2e7d32" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
 
       {/* X ok ucu */}
       <mesh position={[range + 0.4, y, 0]} rotation={[0, 0, -Math.PI / 2]}>
         <coneGeometry args={[0.18, 0.5, 8]} />
-        <meshBasicMaterial color="#d32f2f" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
       {/* Y ok ucu (-Z yönü) */}
       <mesh position={[0, y, -(range + 0.4)]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[0.18, 0.5, 8]} />
-        <meshBasicMaterial color="#2e7d32" />
+        <meshBasicMaterial color="#ffffff" />
       </mesh>
 
       {/* Eksen etiketleri */}
       <Billboard position={[range + 0.9, 0.3, 0]}>
-        <Text fontSize={0.5} color="#d32f2f" fontWeight="bold" outlineWidth={0.03} outlineColor="#ffffff">
+        <Text fontSize={0.5} color="#ffffff" fontWeight="bold">
           X
         </Text>
       </Billboard>
       <Billboard position={[0, 0.3, -(range + 0.9)]}>
-        <Text fontSize={0.5} color="#2e7d32" fontWeight="bold" outlineWidth={0.03} outlineColor="#ffffff">
+        <Text fontSize={0.5} color="#ffffff" fontWeight="bold">
           Y
         </Text>
       </Billboard>
 
       {/* Orijin etiketi */}
       <Billboard position={[-0.35, 0.15, 0.35]}>
-        <Text fontSize={0.3} color="#333333" fontWeight="bold" outlineWidth={0.02} outlineColor="#ffffff">
+        <Text fontSize={0.3} color="#ffffff" fontWeight="bold" outlineWidth={0.02} outlineColor="#000000">
           0
         </Text>
       </Billboard>
@@ -652,14 +634,14 @@ export default function ForceVectors() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '78px',
+          top: '136px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -675,7 +657,7 @@ export default function ForceVectors() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
