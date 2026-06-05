@@ -2,11 +2,19 @@ import React, { useState } from "react"
 import FallingCubes from "./FallingCubes"
 import InclinedPlane from "./InclinedPlane"
 import ProjectileMotion from "./ProjectileMotion"
+import ForceVectors from "./ForceVectors"
+import CollisionMomentum from "./CollisionMomentum"
+import OpticsSimulation from "./OpticsSimulation"
+import HarmonicMotion from "./HarmonicMotion"
 
 const simulations = [
   { id: "falling", name: "Free Fall", image: "/images/freefall.jpg" },
   { id: "ramp", name: "Inclined Plane", image: "/images/inclined.jpg" },
   { id: "projectile", name: "Projectile Motion", image: "/images/projectile.jpg" },
+  { id: "forces", name: "Force Vectors", image: "/images/forcevectors.jpg" },
+  { id: "collision", name: "Collision", image: "/images/collision.jpg" },
+  { id: "optics", name: "Optics & Mirrors", image: "/images/optics.jpg" },
+  { id: "harmonic", name: "Harmonic Motion", image: "/images/harmonic.png" },
 ]
 
 export default function App() {
@@ -72,6 +80,10 @@ export default function App() {
       {mode === "falling" && <FallingCubes />}
       {mode === "ramp" && <InclinedPlane />}
       {mode === "projectile" && <ProjectileMotion />}
+      {mode === "forces" && <ForceVectors />}
+      {mode === "collision" && <CollisionMomentum />}
+      {mode === "optics" && <OpticsSimulation />}
+      {mode === "harmonic" && <HarmonicMotion />}
     </div>
   )
 }

@@ -265,6 +265,7 @@ export default function InclinedPlane() {
   const [mass2,    setMass2]    = useState(5)
   const [lightAngle, setLightAngle] = useState(45)
   const [lightIntensity, setLightIntensity] = useState(1.5)
+  const [lightPanelOpen, setLightPanelOpen] = useState(false)
   const [times,    setTimes]    = useState({ t1: 0, t2: 0 })
   const [finished, setFinished] = useState({ f1: false, f2: false })
 
@@ -423,18 +424,55 @@ export default function InclinedPlane() {
         </div>
       </div>
 
-      <div style={{ position: 'absolute', bottom: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
-        <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px' }}>
-          <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>LIGHT CONTROLS</h3>
-          <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>LIGHT ANGLE: {lightAngle}°</label>
-            <input type="range" min="0" max="360" step="1" value={lightAngle} onChange={e => setLightAngle(Number(e.target.value))} style={{ width: '100%', marginBottom: '10px' }} />
+      {/* Işık Kontrol Butonu */}
+      <button
+        onClick={() => setLightPanelOpen(!lightPanelOpen)}
+        style={{
+          position: 'absolute',
+          top: '78px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+          fontSize: '22px',
+        }}
+        title="Light Controls"
+      >
+        ☀️
+      </button>
 
-            <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>LIGHT INTENSITY: {lightIntensity.toFixed(1)}</label>
-            <input type="range" min="0" max="3" step="0.1" value={lightIntensity} onChange={e => setLightIntensity(Number(e.target.value))} style={{ width: '100%' }} />
-          </div>
+      {lightPanelOpen && (
+        <div style={{
+          position: 'absolute',
+          top: '136px',
+          right: '24px',
+          zIndex: 999,
+          background: 'rgba(255,255,255,0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '16px',
+          borderRadius: '12px',
+          boxShadow: '0 8px 30px rgba(0,0,0,0.2)',
+          border: '1px solid #eee',
+          width: '220px',
+          fontFamily: 'sans-serif',
+        }}>
+          <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>LIGHT CONTROLS</h4>
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>ANGLE: {lightAngle}°</label>
+          <input type="range" min="0" max="360" step="1" value={lightAngle} onChange={e => setLightAngle(Number(e.target.value))} style={{ width: '100%', marginBottom: '10px' }} />
+          <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>INTENSITY: {lightIntensity.toFixed(1)}</label>
+          <input type="range" min="0" max="3" step="0.1" value={lightIntensity} onChange={e => setLightIntensity(Number(e.target.value))} style={{ width: '100%' }} />
         </div>
-      </div>
+      )}
 
       <Canvas shadows camera={{ position: [30, 20, 30], fov: 35 }} style={{ background: "#000000" }}>
         <color attach="background" args={["#000000"]} />
