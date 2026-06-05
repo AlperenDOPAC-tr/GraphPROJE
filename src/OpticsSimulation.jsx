@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Text, Billboard, Line } from '@react-three/drei'
+import { LightBulbIcon } from './Icons'
 import * as THREE from 'three'
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
@@ -337,9 +338,7 @@ export default function OpticsSimulation() {
           fontSize: '22px',
         }}
         title="Light Controls"
-      >
-        ☀️
-      </button>
+      ><LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} /></button>
 
       {lightPanelOpen && (
         <div style={{

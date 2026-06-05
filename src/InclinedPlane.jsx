@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react"
+import { LightBulbIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import {
@@ -447,9 +448,7 @@ export default function InclinedPlane() {
           fontSize: '22px',
         }}
         title="Light Controls"
-      >
-        ☀️
-      </button>
+      ><LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} /></button>
 
       {lightPanelOpen && (
         <div style={{

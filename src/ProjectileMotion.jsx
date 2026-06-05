@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react"
+import { LightBulbIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { Physics, RigidBody, CuboidCollider, BallCollider, useBeforePhysicsStep } from "@react-three/rapier"
@@ -548,9 +549,7 @@ export default function ProjectileMotion() {
           fontSize: '22px',
         }}
         title="Light Controls"
-      >
-        ☀️
-      </button>
+      ><LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} /></button>
 
       {lightPanelOpen && (
         <div style={{

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text, Line } from '@react-three/drei'
+import { LightBulbIcon } from './Icons'
 import * as THREE from 'three'
 import { getGroundTexture } from './utils'
 
@@ -319,30 +320,42 @@ export default function HarmonicMotion() {
 
       {/* Işık Kontrol Butonu */}
       <button
-        onClick={() => setLightPanelOpen(!lightPanelOpen)}
-        style={{
-          position: 'absolute',
-          top: '78px',
-          right: '24px',
-          zIndex: 1000,
-          width: '48px',
-          height: '48px',
-          borderRadius: '14px',
-          border: 'none',
-          background: lightPanelOpen ? 'rgba(255,200,0,0.9)' : 'rgba(15, 15, 20, 0.85)',
-          backdropFilter: 'blur(12px)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
-          fontSize: '22px',
-        }}
-        title="Light Controls"
-      >
-        ☀️
-      </button>
+  onClick={() => setLightPanelOpen(!lightPanelOpen)}
+  style={{
+    position: 'absolute',
+    top: '78px',
+    right: '24px',
+    zIndex: 1000,
+    width: '48px',
+    height: '48px',
+    borderRadius: '14px',
+    border: 'none',
+    background: lightPanelOpen
+      ? 'rgba(255,200,0,0.9)'
+      : 'rgba(15, 15, 20, 0.85)',
+    backdropFilter: 'blur(12px)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+    transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+    fontSize: '22px',
+  }}
+  title="Light Controls"
+>
+  <img
+    src="https://www.svgrepo.com/show/20845/bright-light-bulb.svg"
+    alt="Light Icon"
+    style={{
+      width: '24px',
+      height: '24px',
+      filter: lightPanelOpen
+        ? 'drop-shadow(0 0 4px rgba(255,200,0,0.9))'
+        : 'none',
+    }}
+  />
+</button>
 
       {lightPanelOpen && (
         <div style={{

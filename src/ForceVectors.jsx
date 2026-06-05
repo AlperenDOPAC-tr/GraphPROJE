@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react"
+import { LightBulbIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { OrbitControls, Text, Billboard, Line, MeshReflectorMaterial } from "@react-three/drei"
@@ -669,9 +670,7 @@ export default function ForceVectors() {
           fontSize: '22px',
         }}
         title="Light Controls"
-      >
-        ☀️
-      </button>
+      ><LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} /></button>
 
       {lightPanelOpen && (
         <div style={{
