@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react"
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
 import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
@@ -16,42 +16,41 @@ const Controls = ({
   lightInt, setLightInt, 
   lightDir, setLightDir,
   lightPanelOpen, setLightPanelOpen,
-  started, running, onStart, onReset, times,
-  isPaused, setIsPaused,
+  hasStarted, isPlaying, onPlayPause, onReset, times, running,
   speedPanelOpen, setSpeedPanelOpen,
   timeScale, setTimeScale
 }) => {
-  const finished = started && !running.r1 && !running.r2;
+  const finished = hasStarted && !running.r1 && !running.r2;
   return (
   <>
-  <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
+  <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
     <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px' }}>
       <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>FREE FALL</h3>
       
       {/* 1. KÜP */}
-      <div style={{ background: (started && !running.r1) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (started && !running.r1) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
+      <div style={{ background: (hasStarted && !running.r1) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (hasStarted && !running.r1) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
         <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold', display: 'block' }}>1. CUBE (PINK)</label>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px' }}><span>Mass: {mass1} kg</span></div>
-        <input type="range" min="1" max="100" value={mass1} onChange={(e) => setMass1(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '4px 0' }} />
+        <input type="range" min="1" max="100" value={mass1} onChange={(e) => setMass1(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '4px 0' }} />
         
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px' }}><span>Height: {height1} m</span></div>
-        <input type="range" min="5" max="50" step="1" value={height1} onChange={(e) => setHeight1(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '4px 0 8px 0' }} />
+        <input type="range" min="5" max="50" step="1" value={height1} onChange={(e) => setHeight1(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '4px 0 8px 0' }} />
 
-        <div style={{ fontSize: (started && !running.r1) ? '14px' : '12px', fontWeight: 'bold', color: (started && !running.r1) ? '#2e7d32' : '#d81b60', textAlign: 'right' }}>
+        <div style={{ fontSize: (hasStarted && !running.r1) ? '14px' : '12px', fontWeight: 'bold', color: (hasStarted && !running.r1) ? '#2e7d32' : '#d81b60', textAlign: 'right' }}>
           Time: {times.t1.toFixed(3)} s
         </div>
       </div>
 
       {/* 2. KÜP */}
-      <div style={{ background: (started && !running.r2) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (started && !running.r2) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
+      <div style={{ background: (hasStarted && !running.r2) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (hasStarted && !running.r2) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
         <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold', display: 'block' }}>2. CUBE (BLUE)</label>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px' }}><span>Mass: {mass2} kg</span></div>
-        <input type="range" min="1" max="100" value={mass2} onChange={(e) => setMass2(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '4px 0' }} />
+        <input type="range" min="1" max="100" value={mass2} onChange={(e) => setMass2(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '4px 0' }} />
         
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px' }}><span>Height: {height2} m</span></div>
-        <input type="range" min="5" max="50" step="1" value={height2} onChange={(e) => setHeight2(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '4px 0 8px 0' }} />
+        <input type="range" min="5" max="50" step="1" value={height2} onChange={(e) => setHeight2(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '4px 0 8px 0' }} />
 
-        <div style={{ fontSize: (started && !running.r2) ? '14px' : '12px', fontWeight: 'bold', color: (started && !running.r2) ? '#2e7d32' : '#00acc1', textAlign: 'right' }}>
+        <div style={{ fontSize: (hasStarted && !running.r2) ? '14px' : '12px', fontWeight: 'bold', color: (hasStarted && !running.r2) ? '#2e7d32' : '#00acc1', textAlign: 'right' }}>
           Time: {times.t2.toFixed(3)} s
         </div>
       </div>
@@ -60,7 +59,7 @@ const Controls = ({
       <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold' }}>GRAVITY: {gravity.toFixed(2)} m/s²</label>
         <div style={{ position: 'relative', margin: '8px 0 16px 0', paddingBottom: '15px' }}>
-          <input type="range" min="0" max="25" step="0.01" value={gravity} onChange={(e) => setGravity(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
+          <input type="range" min="0" max="25" step="0.01" value={gravity} onChange={(e) => setGravity(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
           <div style={{ position: 'absolute', top: '20px', left: `${(9.81 / 25) * 100}%`, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             <div style={{ width: '2px', height: '4px', background: '#000000' }}></div>
             <span style={{ fontSize: '9px', color: '#000000', fontWeight: 'bold' }}>Earth (9.81)</span>
@@ -68,30 +67,24 @@ const Controls = ({
         </div>
 
         <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>AIR RESISTANCE: {airRes}%</label>
-        <input type="range" min="0" max="100" step="1" value={airRes} onChange={(e) => setAirRes(Number(e.target.value))} disabled={started} style={{ width: '100%', margin: '8px 0' }} />
+        <input type="range" min="0" max="100" step="1" value={airRes} onChange={(e) => setAirRes(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '8px 0' }} />
       </div>
-
-      {!started ? (
-        <button onClick={onStart} style={{ padding: '14px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>START</button>
-      ) : (
-        <button onClick={onReset} style={{ padding: '14px', cursor: 'pointer', background: '#eee', color: '#000', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' }}>RESET</button>
-      )}
     </div>
   </div>
 
-  {/* Zamanı Durdur (Freeze) Butonu */}
+  {/* Play/Pause Butonu */}
   <button
-    onClick={() => setIsPaused(!isPaused)}
+    onClick={onPlayPause}
     style={{
       position: 'absolute',
-      top: '194px',
+      top: '252px',
       right: '24px',
       zIndex: 1000,
       width: '48px',
       height: '48px',
       borderRadius: '14px',
       border: 'none',
-      background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+      background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
       backdropFilter: 'blur(12px)',
       cursor: 'pointer',
       display: 'flex',
@@ -100,9 +93,35 @@ const Controls = ({
       boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
       transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
     }}
-    title="Freeze Time"
+    title="Play / Pause"
   >
-    <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+    {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+  </button>
+
+  {/* Reset Butonu */}
+  <button
+    onClick={onReset}
+    style={{
+      position: 'absolute',
+      top: '310px',
+      right: '24px',
+      zIndex: 1000,
+      width: '48px',
+      height: '48px',
+      borderRadius: '14px',
+      border: 'none',
+      background: 'rgba(15, 15, 20, 0.85)',
+      backdropFilter: 'blur(12px)',
+      cursor: 'pointer',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+      transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+    }}
+    title="Reset Simulation"
+  >
+    <ResetIcon width={24} height={24} fill="#ffffff" />
   </button>
 
   {/* Hız Kontrol (Slow Motion) Butonu */}
@@ -110,7 +129,7 @@ const Controls = ({
     onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
     style={{
       position: 'absolute',
-      top: '252px',
+      top: '368px',
       right: '24px',
       zIndex: 1000,
       width: '48px',
@@ -134,7 +153,7 @@ const Controls = ({
   {speedPanelOpen && (
     <div style={{
       position: 'absolute',
-      top: '252px',
+      top: '368px',
       right: '82px',
       zIndex: 999,
       background: 'rgba(255,255,255,0.85)',
@@ -157,7 +176,7 @@ const Controls = ({
     onClick={() => setLightPanelOpen(!lightPanelOpen)}
     style={{
       position: 'absolute',
-      top: '136px',
+      top: '194px',
       right: '24px',
       zIndex: 1000,
       width: '48px',
@@ -180,7 +199,7 @@ const Controls = ({
   {lightPanelOpen && (
     <div style={{
       position: 'absolute',
-      top: '136px',
+      top: '194px',
       right: '82px',
       zIndex: 999,
       background: 'rgba(255,255,255,0.85)',
@@ -309,32 +328,40 @@ export default function App() {
   const [lightInt, setLightInt] = useState(2.5)
   const [lightDir, setLightDir] = useState(45)
   const [lightPanelOpen, setLightPanelOpen] = useState(false)
-  const [started, setStarted] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   const [times, setTimes] = useState({ t1: 0, t2: 0 })
   const [running, setRunning] = useState({ r1: false, r2: false })
-  
+  const [resetTrigger, setResetTrigger] = useState(0)
+
   const startTimeRef = useRef(0)
 
-  const startSimulation = () => {
-    startTimeRef.current = Date.now()
-    setStarted(true)
-    setRunning({ r1: true, r2: true })
-    setTimes({ t1: 0, t2: 0 })
+  const handlePlayPause = () => {
+    if (!hasStarted) {
+      startTimeRef.current = Date.now()
+      setHasStarted(true)
+      setIsPlaying(true)
+      setRunning({ r1: true, r2: true })
+      setTimes({ t1: 0, t2: 0 })
+    } else {
+      setIsPlaying(!isPlaying)
+    }
   }
 
   const resetSimulation = () => {
-    setStarted(false)
+    setHasStarted(false)
+    setIsPlaying(false)
     setRunning({ r1: false, r2: false })
     setTimes({ t1: 0, t2: 0 })
+    setResetTrigger(prev => prev + 1)
   }
 
   useEffect(() => {
     let interval
     let lastTime = Date.now()
-    if ((running.r1 || running.r2) && !isPaused) {
+    if ((running.r1 || running.r2) && isPlaying) {
       interval = setInterval(() => {
         const now = Date.now()
         const dt = ((now - lastTime) / 1000) * timeScale
@@ -346,7 +373,7 @@ export default function App() {
       }, 10)
     }
     return () => clearInterval(interval)
-  }, [running.r1, running.r2, isPaused, timeScale])
+  }, [running.r1, running.r2, isPlaying, timeScale])
 
   const lightRadius = 25
   const lightPos = [
@@ -365,8 +392,8 @@ export default function App() {
         lightInt={lightInt} setLightInt={setLightInt}
         lightDir={lightDir} setLightDir={setLightDir}
         lightPanelOpen={lightPanelOpen} setLightPanelOpen={setLightPanelOpen}
-        started={started} running={running} onStart={startSimulation} onReset={resetSimulation}
-        times={times} isPaused={isPaused} setIsPaused={setIsPaused}
+        hasStarted={hasStarted} running={running} onPlayPause={handlePlayPause} onReset={resetSimulation}
+        times={times} isPlaying={isPlaying}
         speedPanelOpen={speedPanelOpen} setSpeedPanelOpen={setSpeedPanelOpen}
         timeScale={timeScale} setTimeScale={setTimeScale}
       />
@@ -392,12 +419,12 @@ export default function App() {
         <OrbitControls makeDefault />
         <SpotLightFixture lightPos={lightPos} intensity={lightInt} />
         
-        <Physics isPaused={isPaused} gravity={[0, -gravity, 0]} key={started ? 'active' : 'idle'}>
+        <Physics isPaused={!isPlaying} gravity={[0, -gravity, 0]} key={resetTrigger}>
           <Ground />
           <HeightChart maxHeight={50} />
           {/* Küpler arası mesafe boyut büyüdüğü için biraz açıldı */}
-          <FallingCube position={[-5, height1, 0]} color="#d81b60" mass={mass1} started={started} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r1: false }))} />
-          <FallingCube position={[5, height2, 0]} color="#00acc1" mass={mass2} started={started} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r2: false }))} />
+          <FallingCube position={[-5, height1, 0]} color="#d81b60" mass={mass1} started={hasStarted} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r1: false }))} />
+          <FallingCube position={[5, height2, 0]} color="#00acc1" mass={mass2} started={hasStarted} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r2: false }))} />
         </Physics>
       </Canvas>
     </div>

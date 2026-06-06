@@ -285,7 +285,7 @@ export default function OpticsInterference() {
   
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000000', overflow: 'hidden', position: 'relative' }}>
-      <div style={panelStyle}>
+      <div className="left-panel" style={panelStyle}>
         <h2 style={titleStyle}>Double & Single Slit</h2>
 
         <div style={mode === "single" ? singleCardStyle : cardStyle}>

@@ -244,8 +244,8 @@ export default function OpticsSimulation() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#050510" }}>
       
       {/* ─── KONTROL PANELİ ───────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
-        <div style={panelStyle}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+        <div className="left-panel" style={panelStyle}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>
             OPTICS & MIRRORS
           </h3>
@@ -320,7 +320,7 @@ export default function OpticsSimulation() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -343,7 +343,7 @@ export default function OpticsSimulation() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',

@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react"
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import React, { useState, useRef, useEffect, useMemo } from 'react'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import {
@@ -160,9 +160,9 @@ function FinishSensor({ position, onHit, angleRad }) {
 // ─── FİZİK SAATI ────────────────────────────────────────────────────────────
 // useBeforePhysicsStep: Rapier her sabit adımdan ÖNCE çağırır.
 // DT = 1/60 s → stepRef * DT = geçen fizik süresi (deterministik, kare hızından bağımsız).
-function PhysicsClock({ started, onTick }) {
+function PhysicsClock({ hasStarted, onTick }) {
   const stepRef = useRef(0)
-  const startedRef = useRef(started); startedRef.current = started
+  const startedRef = useRef(hasStarted); startedRef.current = hasStarted
   const onTickRef  = useRef(onTick);  onTickRef.current  = onTick
 
   useBeforePhysicsStep(() => {
@@ -219,7 +219,7 @@ function AngleIndicator({ side, angleRad }) {
 }
 
 // ─── CANVAS İÇİ SAHNE ──────────────────────────────────────────────────────
-function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, onFinish, onTick, angleRad, textures }) {
+function Scene({ friction, distribution, realWorldMode, mass1, mass2, hasStarted, isPlaying, onFinish, onTick, angleRad, textures, resetTrigger }) {
   // Küp kaydığı için gerçek dünyada statik sürtünme yerine daha düşük olan kinetik sürtünmeye maruz kalır.
   // Küre ise yuvarlandığı için kayma yapmaz ve statik tutunma (yüksek sürtünme) ile çalışır.
   const boxFriction = realWorldMode ? friction * 0.6 : friction;
@@ -242,40 +242,43 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, started, o
 
   return (
     <>
-      <Ground friction={friction} />
-      <Ramp   friction={friction} angleRad={angleRad} texture={textures?.ramp} />
-      <AngleIndicator side="left" angleRad={angleRad} />
-      <AngleIndicator side="right" angleRad={angleRad} />
+        <Ground friction={friction} />
+        <Ramp   friction={friction} angleRad={angleRad} texture={textures?.ramp} />
+        <AngleIndicator side="left" angleRad={angleRad} />
+        <AngleIndicator side="right" angleRad={angleRad} />
 
-      {/* Görsel kırmızı bitiş çizgisi */}
-      <mesh position={[0, surfaceYAtFinish + 0.05, 14]} rotation={[angleRad, 0, 0]}>
-        <boxGeometry args={[20, 0.1, 0.5]} />
-        <meshStandardMaterial color="red" />
-      </mesh>
+        {/* Görsel kırmızı bitiş çizgisi */}
+        <mesh position={[0, surfaceYAtFinish + 0.05, 14]} rotation={[angleRad, 0, 0]}>
+          <boxGeometry args={[20, 0.1, 0.5]} />
+          <meshStandardMaterial color="red" />
+        </mesh>
 
-      {!started ? (
-        /* BAŞLAT öncesi: saf görsel */
-        <>
-          <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE" angleRad={angleRad} texture={textures?.cube} />
-          <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} distribution={distribution} />
-        </>
-      ) : (
-        /* Simülasyon aktif: Rapier fizik + sensörler */
-        <>
-          <CompetitorPhysics type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  friction={boxFriction} mass={mass1} angleRad={angleRad} texture={textures?.cube} />
-          <CompetitorPhysics type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" friction={friction} distribution={distribution} mass={mass2} angleRad={angleRad} texture={textures?.sphere} />
-          <FinishSensor position={[-4, finishY, 14]} onHit={() => onFinish("CUBE")} angleRad={angleRad} />
-          <FinishSensor position={[ 4, finishY, 14]} onHit={() => onFinish("SPHERE")} angleRad={angleRad} />
-        </>
-      )}
+        <PhysicsClock hasStarted={hasStarted} onTick={onTick} />
+
+        {!hasStarted ? (
+          /* BAŞLAT öncesi: saf görsel */
+          <>
+            <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE" angleRad={angleRad} texture={textures?.cube} />
+            <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} distribution={distribution} />
+          </>
+        ) : (
+          /* Simülasyon aktif: Rapier fizik + sensörler */
+          <>
+            <CompetitorPhysics type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  friction={boxFriction} mass={mass1} angleRad={angleRad} texture={textures?.cube} />
+            <CompetitorPhysics type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" friction={friction} distribution={distribution} mass={mass2} angleRad={angleRad} texture={textures?.sphere} />
+            <FinishSensor position={[-4, finishY, 14]} onHit={() => onFinish("CUBE")} angleRad={angleRad} />
+            <FinishSensor position={[ 4, finishY, 14]} onHit={() => onFinish("SPHERE")} angleRad={angleRad} />
+          </>
+        )}
     </>
   )
 }
 
 // ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function InclinedPlane() {
-  const [started,  setStarted]  = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [resetTrigger, setResetTrigger] = useState(0)
   const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   const [rampAngleDeg, setRampAngleDeg] = useState(30)
@@ -325,21 +328,28 @@ export default function InclinedPlane() {
   const r1Running = useRef(false)
   const r2Running = useRef(false)
 
-  const handleStart = () => {
-    setTimes({ t1: 0, t2: 0 })
-    setFinished({ f1: false, f2: false })
-    r1Running.current = true
-    r2Running.current = true
-    setStarted(true)
-    // Timer PhysicsClock tarafından ilk adımda başlatılır
+  const handlePlayPause = () => {
+    if (!hasStarted) {
+      setTimes({ t1: 0, t2: 0 })
+      setFinished({ f1: false, f2: false })
+      r1Running.current = true
+      r2Running.current = true
+      setHasStarted(true)
+      setIsPlaying(true)
+      setResetTrigger(prev => prev + 1)
+    } else {
+      setIsPlaying(!isPlaying)
+    }
   }
 
   const handleReset = () => {
     r1Running.current = false
     r2Running.current = false
-    setStarted(false)
+    setHasStarted(false)
+    setIsPlaying(false)
     setFinished({ f1: false, f2: false })
     setTimes({ t1: 0, t2: 0 })
+    setResetTrigger(prev => prev + 1)
   }
 
   // PhysicsClock her frame bu fonksiyonu çağırır
@@ -359,7 +369,7 @@ export default function InclinedPlane() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#000000" }}>
 
       {/* KONTROL PANELİ */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
         <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px', color: '#333' }}>
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>INCLINED PLANE</h3>
 
@@ -369,21 +379,21 @@ export default function InclinedPlane() {
             </label>
             <input type="range" min="10" max="60" step="1"
               value={rampAngleDeg} onChange={e => setRampAngleDeg(Number(e.target.value))}
-              disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: '10px' }} />
 
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
               FRICTION COEFFICIENT (μ): {friction.toFixed(2)}
             </label>
             <input type="range" min="0" max="0.50" step="0.01"
               value={friction} onChange={e => setFriction(Number(e.target.value))}
-              disabled={started} style={{ width: '100%' }} />
+              disabled={hasStarted} style={{ width: '100%' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px', color: '#999', marginTop: '2px' }}>
               <span>Slippery (μ=0)</span><span>Rough (μ=0.50)</span>
             </div>
             
             <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input type="checkbox" id="realWorld" checked={realWorldMode} 
-                     onChange={e => setRealWorldMode(e.target.checked)} disabled={started} />
+                     onChange={e => setRealWorldMode(e.target.checked)} disabled={hasStarted} />
               <label htmlFor="realWorld" style={{ fontSize: '10px', fontWeight: 'bold', cursor: 'pointer' }}>
                 Kinetic Friction
               </label>
@@ -396,7 +406,7 @@ export default function InclinedPlane() {
               <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>CUBE: {mass1} kg</label>
             </div>
             <input type="range" min="1" max="100" value={mass1}
-              onChange={e => setMass1(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
+              onChange={e => setMass1(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
             <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>Only slides.</div>
             <div style={{ fontSize: finished.f1 ? '18px' : '13px', fontWeight: 'bold', color: finished.f1 ? '#2e7d32' : '#333', transition: 'all 0.3s', marginTop: '8px' }}>
               {times.t1.toFixed(3)} s
@@ -409,11 +419,11 @@ export default function InclinedPlane() {
               <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold' }}>SPHERE: {mass2} kg</label>
             </div>
             <input type="range" min="1" max="100" value={mass2}
-              onChange={e => setMass2(Number(e.target.value))} disabled={started} style={{ width: '100%' }} />
+              onChange={e => setMass2(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
             <select 
               value={distribution} 
               onChange={e => setDistribution(e.target.value)} 
-              disabled={started}
+              disabled={hasStarted}
               style={{ 
                 width: '100%', 
                 marginTop: '8px', 
@@ -424,7 +434,7 @@ export default function InclinedPlane() {
                 border: '1px solid #ccc', 
                 background: '#fff', 
                 color: '#333',
-                cursor: started ? 'not-allowed' : 'pointer',
+                cursor: hasStarted ? 'not-allowed' : 'pointer',
                 outline: 'none',
                 boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
               }}
@@ -437,27 +447,22 @@ export default function InclinedPlane() {
             </div>
           </div>
 
-          {!started ? (
-            <button onClick={handleStart} style={{ padding: '14px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>START</button>
-          ) : (
-            <button onClick={handleReset} style={{ padding: '14px', cursor: 'pointer', background: '#eee', color: '#000', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' }}>RESET</button>
-          )}
         </div>
       </div>
 
-      {/* Zamanı Durdur (Freeze) Butonu */}
+      {/* Play/Pause Butonu */}
       <button
-        onClick={() => setIsPaused(!isPaused)}
+        onClick={handlePlayPause}
         style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -466,9 +471,35 @@ export default function InclinedPlane() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
-        title="Freeze Time"
+        title="Play / Pause"
       >
-        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+        {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+      </button>
+
+      {/* Reset Butonu */}
+      <button
+        onClick={handleReset}
+        style={{
+          position: 'absolute',
+          top: '310px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Reset Simulation"
+      >
+        <ResetIcon width={24} height={24} fill="#ffffff" />
       </button>
 
       {/* Hız Kontrol (Slow Motion) Butonu */}
@@ -476,7 +507,7 @@ export default function InclinedPlane() {
         onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
         style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -500,7 +531,7 @@ export default function InclinedPlane() {
       {speedPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -523,7 +554,7 @@ export default function InclinedPlane() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -546,7 +577,7 @@ export default function InclinedPlane() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -585,10 +616,10 @@ export default function InclinedPlane() {
           timeStep: 1/60 s sabit → Rapier deterministik çalışır
         */}
         <Physics
-          key={started ? 'active' : 'idle'}
+          key={resetTrigger}
           gravity={[0, -9.81, 0]}
           timeStep={DT}
-          paused={isPaused}
+          paused={!isPlaying}
         >
           <Scene
             friction={friction}
@@ -596,13 +627,15 @@ export default function InclinedPlane() {
             realWorldMode={realWorldMode}
             mass1={mass1}
             mass2={mass2}
-            started={started}
+            hasStarted={hasStarted}
+            isPlaying={isPlaying}
+            resetTrigger={resetTrigger}
             onFinish={handleFinish}
             onTick={handleTick}
             angleRad={rampAngleDeg * Math.PI / 180}
             textures={textures}
           />
-          <PhysicsClock started={started} onTick={handleTick} />
+          <PhysicsClock hasStarted={hasStarted} onTick={handleTick} />
         </Physics>
       </Canvas>
     </div>

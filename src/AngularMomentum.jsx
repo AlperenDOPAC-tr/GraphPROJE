@@ -3,15 +3,21 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { OrbitControls, Edges, Text } from "@react-three/drei"
 import * as THREE from "three"
 import { getGroundTexture } from "./utils"
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import { LightBulbIcon, PlayIcon, PauseIcon, ResetIcon, SpeedIcon } from './Icons'
 
 // ─── FİZİK MOTORU VE SAHNE ───────────────────────────────────────────────────
-function AngularScene({ diskMass, diskRadius, cubeMass, isPlaying, isPaused, hasStarted, setHasStarted, lockedLTotal, setLockedLTotal, simData, setSimData, setIsDraggingParent, timeScale }) {
+function AngularScene({ diskMass, diskRadius, cubeMass, isPlaying, simData, setSimData, setIsDraggingParent, timeScale, resetTrigger }) {
   const diskRef = useRef()
   const cubeRef = useRef()
   const [cubePos, setCubePos] = useState(new THREE.Vector3(diskRadius * 0.5, 0.25, 0))
   const [isDraggingLocal, setIsDraggingLocal] = useState(false)
   const angleRef = useRef(0)
+
+  // Reset mechanic
+  React.useEffect(() => {
+    angleRef.current = 0
+    setCubePos(new THREE.Vector3(diskRadius * 0.5, 0.25, 0))
+  }, [resetTrigger, diskRadius])
 
   // Clamp cube position when radius changes
   React.useEffect(() => {
@@ -41,7 +47,7 @@ function AngularScene({ diskMass, diskRadius, cubeMass, isPlaying, isPaused, has
 
   // Update panel data
   useFrame(() => {
-    if (isPlaying && !isPaused) {
+    if (isPlaying) {
       angleRef.current += omega * 0.016 * timeScale // approx dt with timeScale
     }
     if (diskRef.current) {
@@ -139,23 +145,23 @@ function AngularScene({ diskMass, diskRadius, cubeMass, isPlaying, isPaused, has
   )
 }
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
+// ─── ANA BİLEŞEN ────────────────────────────────────────────────────────────
 export default function AngularMomentum() {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [isDraggingParent, setIsDraggingParent] = useState(false)
+  const [diskMass, setDiskMass] = useState(20)
+  const [diskRadius, setDiskRadius] = useState(4)
+  const [cubeMass, setCubeMass] = useState(10)
   
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [resetTrigger, setResetTrigger] = useState(0)
+
+  const [timeScale, setTimeScale] = useState(1.0)
+  const [timePanelOpen, setTimePanelOpen] = useState(false)
+
   const [lightPanelOpen, setLightPanelOpen] = useState(false)
   const [lightDir, setLightDir] = useState(45)
-  const [lightInt, setLightInt] = useState(1.2)
+  const [lightInt, setLightInt] = useState(1.5)
 
-  const [timePanelOpen, setTimePanelOpen] = useState(false)
-  const [timeScale, setTimeScale] = useState(1.0)
-  
-  const [isPaused, setIsPaused] = useState(false)
-
-  const [diskMass, setDiskMass] = useState(10) // kg
-  const [diskRadius, setDiskRadius] = useState(3.0) // m
-  const [cubeMass, setCubeMass] = useState(5) // kg
+  const [isDraggingParent, setIsDraggingParent] = useState(false)
 
   const [simData, setSimData] = useState({
     I_disk: 0, I_cube: 0, I_total: 0,
@@ -186,7 +192,7 @@ export default function AngularMomentum() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000000', overflow: 'hidden', position: 'relative' }}>
-      <div style={panelStyle}>
+      <div className="left-panel" style={panelStyle}>
         <h2 style={titleStyle}>ANGULAR MOMENTUM</h2>
         
         {/* Controls */}
@@ -275,27 +281,19 @@ export default function AngularMomentum() {
              <div style={barFillStyle('#f59e0b', simData.L_total > 0 ? (simData.L_cube / simData.L_total) * 100 : 0)} />
           </div>
         </div>
-
-        {/* Start Button */}
-        <button 
-          onClick={() => setIsPlaying(!isPlaying)} 
-          style={{ width: '100%', padding: '14px', borderRadius: '8px', border: 'none', background: '#000', color: '#fff', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '8px' }}
-        >
-          {isPlaying ? "⏸ PAUSE" : "▶ START"}
-        </button>
       </div>
 
       {/* Işık Kontrol Butonu */}
       <button
         onClick={() => { setLightPanelOpen(!lightPanelOpen); setTimePanelOpen(false); }}
-        style={{ position: 'absolute', top: '136px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
+        style={{ position: 'absolute', top: '194px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: lightPanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
         title="Light Controls"
       >
         <LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} />
       </button>
 
       {lightPanelOpen && (
-        <div style={{ position: 'absolute', top: '136px', right: '82px', zIndex: 999, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)', padding: '16px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.2)', border: '1px solid #eee', width: '220px', fontFamily: 'sans-serif' }}>
+        <div style={{ position: 'absolute', top: '194px', right: '82px', zIndex: 999, background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)', padding: '16px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.2)', border: '1px solid #eee', width: '220px', fontFamily: 'sans-serif' }}>
           <h4 style={{ margin: '0 0 10px 0', fontSize: '12px', color: '#333', textAlign: 'center' }}>LIGHT CONTROLS</h4>
           <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#333' }}>ANGLE: {lightDir}°</label>
           <input type="range" min="0" max="360" step="1" value={lightDir} onChange={e => setLightDir(Number(e.target.value))} style={{ width: '100%', marginBottom: '10px' }} />
@@ -304,19 +302,28 @@ export default function AngularMomentum() {
         </div>
       )}
 
-      {/* Freeze Time Butonu */}
+      {/* Play/Pause Butonu */}
       <button
-        onClick={() => setIsPaused(!isPaused)}
-        style={{ position: 'absolute', top: '194px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
-        title="Freeze Time"
+        onClick={() => setIsPlaying(!isPlaying)}
+        style={{ position: 'absolute', top: '252px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
+        title="Play / Pause"
       >
-        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+        {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+      </button>
+
+      {/* Reset Butonu */}
+      <button
+        onClick={() => { setIsPlaying(false); setResetTrigger(prev => prev + 1); }}
+        style={{ position: 'absolute', top: '310px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
+        title="Reset Simulation"
+      >
+        <ResetIcon width={24} height={24} fill="#ffffff" />
       </button>
 
       {/* Zaman Kontrol Butonu */}
       <button
         onClick={() => { setTimePanelOpen(!timePanelOpen); setLightPanelOpen(false); }}
-        style={{ position: 'absolute', top: '252px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: timePanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
+        style={{ position: 'absolute', top: '368px', right: '24px', zIndex: 1000, width: '48px', height: '48px', borderRadius: '14px', border: 'none', background: timePanelOpen ? '#ffffff' : 'rgba(15, 15, 20, 0.85)', backdropFilter: 'blur(12px)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.25)', transition: 'all 0.3s' }}
         title="Time Scale"
       >
         <SpeedIcon width={24} height={24} fill={timePanelOpen ? '#000000' : '#ffffff'} />
@@ -325,7 +332,7 @@ export default function AngularMomentum() {
       {timePanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -360,7 +367,7 @@ export default function AngularMomentum() {
         
         <AngularScene 
           diskMass={diskMass} diskRadius={diskRadius} cubeMass={cubeMass}
-          isPlaying={isPlaying} isPaused={isPaused}
+          isPlaying={isPlaying} resetTrigger={resetTrigger}
           simData={simData} setSimData={setSimData} setIsDraggingParent={setIsDraggingParent}
           timeScale={timeScale}
         />

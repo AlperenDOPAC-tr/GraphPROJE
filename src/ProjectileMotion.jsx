@@ -1,5 +1,5 @@
-import React, { useState, useRef } from "react"
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import React, { useState, useRef, useMemo } from 'react'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
 import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
@@ -82,9 +82,9 @@ function Ground() {
 
 // ─── FİZİK SAATİ ────────────────────────────────────────────────────────────
 const DT = 1 / 60;
-function PhysicsClock({ started, onTick }) {
+function PhysicsClock({ hasStarted, onTick }) {
   const stepRef = useRef(0)
-  const startedRef = useRef(started); startedRef.current = started
+  const startedRef = useRef(hasStarted); startedRef.current = hasStarted
   const onTickRef  = useRef(onTick);  onTickRef.current  = onTick
 
   useBeforePhysicsStep(() => {
@@ -184,7 +184,7 @@ function LaunchArrow({ angle, velocity }) {
 }
 
 // ─── KÜRE (ATIŞ CİSMİ) ─────────────────────────────────────────────────────
-function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onProgress, finished }) {
+function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, onProgress, finished }) {
   const bodyRef = useRef(null)
   const lastVel = useRef(0)
   const lastVy = useRef(0)
@@ -194,27 +194,27 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
   
   // reset maxH on new start
   React.useEffect(() => {
-    if (started) {
+    if (hasStarted) {
       maxH.current = 0;
       lastPointTime.current = 0;
       frameCount.current = 0;
     }
-  }, [started]);
+  }, [hasStarted]);
   
   // started state değiştiğinde, eğer started=true ise hızı uygula
   React.useEffect(() => {
-    if (started && bodyRef.current) {
+    if (hasStarted && bodyRef.current) {
       const rad = (angle * Math.PI) / 180;
       const vx = velocity * Math.cos(rad);
       const vy = velocity * Math.sin(rad);
       // Rapier'de doğrudan hızı ayarlayabiliriz
       bodyRef.current.setLinvel({ x: vx, y: vy, z: 0 }, true);
     }
-  }, [started, velocity, angle]);
+  }, [hasStarted, velocity, angle]);
 
   // Her frame'de hızı takip et (çarpmadan hemen önceki hızı yakalamak için)
   useFrame((state) => {
-    if (started && !finished && bodyRef.current) {
+    if (hasStarted && !finished && bodyRef.current) {
       frameCount.current++;
       const v = bodyRef.current.linvel();
       let speed = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
@@ -268,7 +268,7 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
   return (
     <RigidBody
       ref={bodyRef}
-      type={started ? "dynamic" : "fixed"} // Başlayana kadar havada sabit kalsın
+      type={hasStarted ? "dynamic" : "fixed"} // Başlayana kadar havada sabit kalsın
       colliders={false}
       position={position}
       massProperties={massProps}
@@ -276,7 +276,7 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
       linearDamping={0} // Enerji korunumunun kusursuz olması için hava sürtünmesini (damping) sıfırlıyoruz
       angularDamping={0}
       onCollisionEnter={() => {
-        if (started && !finished && bodyRef.current) {
+        if (hasStarted && !finished && bodyRef.current) {
           const posY = bodyRef.current.translation().y;
           // Yere çarptığını anlamak için hem Y pozisyonu düşük olmalı
           // hem de cisim AŞAĞI doğru düşüyor olmalı (Y hızı negatif olmalı)
@@ -295,7 +295,7 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
         <meshStandardMaterial color="white" map={texture} />
       </mesh>
       {/* Başlamadan önce fırlatma yönünü gösteren ok */}
-      {!started && <LaunchArrow angle={angle} velocity={velocity} />}
+      {!hasStarted && <LaunchArrow angle={angle} velocity={velocity} />}
       <BallCollider args={[radius]} />
     </RigidBody>
   )
@@ -303,8 +303,8 @@ function ProjectileSphere({ position, velocity, angle, started, mass, onHit, onP
 
 // ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function ProjectileMotion() {
-  const [started, setStarted] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
   const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   const [towerHeight, setTowerHeight] = useState(20)
@@ -334,31 +334,37 @@ export default function ProjectileMotion() {
   // Reset işlemi için benzersiz anahtar
   const [simKey, setSimKey] = useState(0)
 
-  const handleStart = () => {
-    setElapsed(0)
-    setFinalVel(velocity) // Set explicitly to avoid 0 before first frame
-    setFinalDist(0)
-    setCurrentHeight(towerHeight)
-    setMaxHeight(towerHeight)
-    setFinished(false)
-    runningRef.current = true
-    
-    // İz sıfırlama (mevcut uçuş için)
-    currentTrailRef.current = [[towerX + 2, towerHeight + 1, 0]]; // Başlangıç noktası
-    setCurrentTrail([[towerX + 2, towerHeight + 1, 0]]);
-    
-    setStarted(true)
+  const handlePlayPause = () => {
+    if (!hasStarted) {
+      setElapsed(0)
+      setFinalVel(velocity) // Set explicitly to avoid 0 before first frame
+      setFinalDist(0)
+      setCurrentHeight(towerHeight)
+      setMaxHeight(towerHeight)
+      setFinished(false)
+      runningRef.current = true
+      
+      // İz sıfırlama (mevcut uçuş için)
+      currentTrailRef.current = [[towerX + 2, towerHeight + 1, 0]]; // Başlangıç noktası
+      setCurrentTrail([[towerX + 2, towerHeight + 1, 0]]);
+      
+      setHasStarted(true)
+      setIsPlaying(true)
 
-    // Eğer yerden (kule 0) ve yatay (açı 0) atılıyorsa, top havalanamayacağı için uçuş anında biter
-    if (towerHeight === 0 && angle === 0) {
-      setTimeout(() => {
-        handleHit(velocity, 0, 0);
-      }, 50); // UI'ın güncellenmesi için ufak bir gecikme
+      // Eğer yerden (kule 0) ve yatay (açı 0) atılıyorsa, top havalanamayacağı için uçuş anında biter
+      if (towerHeight === 0 && angle === 0) {
+        setTimeout(() => {
+          handleHit(velocity, 0, 0);
+        }, 50); // UI'ın güncellenmesi için ufak bir gecikme
+      }
+    } else {
+      setIsPlaying(!isPlaying)
     }
   }
 
   const handleReset = () => {
-    setStarted(false)
+    setHasStarted(false)
+    setIsPlaying(false)
     runningRef.current = false
     setElapsed(0)
     setFinalVel(velocity) // Reset explicitly
@@ -431,7 +437,7 @@ export default function ProjectileMotion() {
   const towerX = -25;
 
   // Enerji Hesaplamaları
-  const displayVelocity = (!started && !finished) ? velocity : finalVel;
+  const displayVelocity = (!hasStarted && !finished) ? velocity : finalVel;
   const currentKE = 0.5 * mass * Math.pow(displayVelocity, 2);
   const currentPE = mass * 9.81 * currentHeight;
   const totalEnergy = currentKE + currentPE;
@@ -444,7 +450,7 @@ export default function ProjectileMotion() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#000000" }}>
       
       {/* KONTROL PANELİ */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
         <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px', color: '#333' }}>
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>PROJECTILE MOTION</h3>
 
@@ -460,28 +466,28 @@ export default function ProjectileMotion() {
                 setCurrentHeight(val);
                 setMaxHeight(val);
               }}
-              disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: '10px' }} />
 
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>
               INITIAL VELOCITY (V): {velocity} m/s
             </label>
             <input type="range" min="0" max="40" step="1"
               value={velocity} onChange={e => setVelocity(Number(e.target.value))}
-              disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: '10px' }} />
 
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>
               LAUNCH ANGLE: {angle}°
             </label>
             <input type="range" min="0" max="85" step="1"
               value={angle} onChange={e => setAngle(Number(e.target.value))}
-              disabled={started} style={{ width: '100%', marginBottom: '10px' }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: '10px' }} />
 
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px', color: '#333' }}>
               OBJECT MASS: {mass} kg
             </label>
             <input type="range" min="1" max="100" step="1"
               value={mass} onChange={e => setMass(Number(e.target.value))}
-              disabled={started} style={{ width: '100%' }} />
+              disabled={hasStarted} style={{ width: '100%' }} />
           </div>
 
           {/* SONUÇLAR / CANLI TAKİP */}
@@ -516,12 +522,6 @@ export default function ProjectileMotion() {
             </div>
           </div>
 
-          {!started ? (
-            <button onClick={handleStart} style={{ padding: '14px', cursor: 'pointer', background: '#000', color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}>START</button>
-          ) : (
-            <button onClick={handleReset} style={{ padding: '14px', cursor: 'pointer', background: '#eee', color: '#000', border: '1px solid #ddd', borderRadius: '8px', fontWeight: 'bold' }}>RESET</button>
-          )}
-          
           {trails.length > 0 && (
             <button onClick={handleClearTrails} style={{ padding: '8px', marginTop: '10px', cursor: 'pointer', background: '#ffebee', color: '#d32f2f', border: '1px solid #ef9a9a', borderRadius: '8px', fontWeight: 'bold', fontSize: '11px' }}>
               CLEAR TRAILS
@@ -530,19 +530,19 @@ export default function ProjectileMotion() {
         </div>
       </div>
 
-      {/* Zamanı Durdur (Freeze) Butonu */}
+      {/* Play/Pause Butonu */}
       <button
-        onClick={() => setIsPaused(!isPaused)}
+        onClick={handlePlayPause}
         style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -551,9 +551,35 @@ export default function ProjectileMotion() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
-        title="Freeze Time"
+        title="Play / Pause"
       >
-        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+        {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+      </button>
+
+      {/* Reset Butonu */}
+      <button
+        onClick={handleReset}
+        style={{
+          position: 'absolute',
+          top: '310px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Reset Simulation"
+      >
+        <ResetIcon width={24} height={24} fill="#ffffff" />
       </button>
 
       {/* Hız Kontrol (Slow Motion) Butonu */}
@@ -561,7 +587,7 @@ export default function ProjectileMotion() {
         onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
         style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -585,7 +611,7 @@ export default function ProjectileMotion() {
       {speedPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -608,7 +634,7 @@ export default function ProjectileMotion() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -631,7 +657,7 @@ export default function ProjectileMotion() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -664,8 +690,8 @@ export default function ProjectileMotion() {
           Math.sin(lightAngle * Math.PI / 180) * 50
         ]} target={[towerX, 0, 0]} intensity={lightIntensity} />
 
-        <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60} paused={isPaused}>
-          <PhysicsClock started={started} onTick={handleTick} />
+        <Physics key={simKey} gravity={[0, -9.81, 0]} timeStep={1/60} paused={!isPlaying}>
+          <PhysicsClock hasStarted={hasStarted} onTick={handleTick} />
           <Ground />
           <Tower height={towerHeight} position={[towerX, 0, 0]} />
           
@@ -675,7 +701,7 @@ export default function ProjectileMotion() {
             velocity={velocity} 
             angle={angle}
             mass={mass} 
-            started={started}
+            hasStarted={hasStarted}
             finished={finished}
             onHit={handleHit}
             onProgress={handleProgress}

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Text, Line } from '@react-three/drei'
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
 import ClockScaler from './ClockScaler'
 import * as THREE from 'three'
 import { getGroundTexture } from './utils'
@@ -169,7 +169,7 @@ function Room() {
 }
 
 // Simülasyon Yöneticisi
-function SimulationEngine({ started, isPaused, g, pL, pM, sK, sM, setPState, setSState }) {
+function SimulationEngine({ hasStarted, isPlaying, resetTrigger, g, pL, pM, sK, sM, setPState, setSState }) {
   const timeRef = useRef(0)
   
   // Başlangıç değerleri
@@ -178,7 +178,7 @@ function SimulationEngine({ started, isPaused, g, pL, pM, sK, sM, setPState, set
   const amplitude = 2.5 // Yayın salınım genliği
   
   useFrame((_, delta) => {
-    if (!started) {
+    if (!hasStarted) {
       timeRef.current = 0
       
       // Sarkaç başlangıç konumu
@@ -191,7 +191,7 @@ function SimulationEngine({ started, isPaused, g, pL, pM, sK, sM, setPState, set
       return
     }
 
-    if (isPaused) return
+    if (!isPlaying) return
 
     const dt = Math.min(delta, 1/30)
     timeRef.current += dt
@@ -217,8 +217,9 @@ function SimulationEngine({ started, isPaused, g, pL, pM, sK, sM, setPState, set
 
 // ─── MAIN APP COMPONENT ──────────────────────────────────────────────────────
 export default function HarmonicMotion() {
-  const [started, setStarted] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [resetTrigger, setResetTrigger] = useState(0)
   const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   
@@ -240,15 +241,28 @@ export default function HarmonicMotion() {
   const T_pendulum = 2 * Math.PI * Math.sqrt(pL / g)
   const T_spring = 2 * Math.PI * Math.sqrt(sM / sK)
 
-  const handleStart = () => setStarted(true)
-  const handleReset = () => setStarted(false)
+  const handlePlayPause = () => {
+    if (!hasStarted) {
+      setHasStarted(true)
+      setIsPlaying(true)
+      setResetTrigger(prev => prev + 1)
+    } else {
+      setIsPlaying(!isPlaying)
+    }
+  }
+
+  const handleReset = () => {
+    setHasStarted(false)
+    setIsPlaying(false)
+    setResetTrigger(prev => prev + 1)
+  }
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#111" }}>
       
       {/* ─── KONTROL PANELİ ───────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
-        <div style={panelStyle}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+        <div className="left-panel" style={panelStyle}>
           <h3 style={{ margin: '0 0 12px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>
             HARMONIC MOTION
           </h3>
@@ -257,7 +271,7 @@ export default function HarmonicMotion() {
             <label style={lblStyle}>GRAVITY (g): {g.toFixed(1)} m/s²</label>
             <input type="range" min={1} max={25} step={0.1} value={g}
               onChange={e => setG(+e.target.value)}
-              disabled={started} style={{ width: '100%' }} />
+              disabled={hasStarted} style={{ width: '100%' }} />
           </div>
 
           <div style={cardStyle(PENDULUM_COLOR)}>
@@ -266,12 +280,12 @@ export default function HarmonicMotion() {
             <label style={lblStyle}>LENGTH (L): {pL.toFixed(1)} m</label>
             <input type="range" min={1} max={10} step={0.1} value={pL}
               onChange={e => setPL(+e.target.value)}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>MASS (m): {pM.toFixed(1)} kg</label>
             <input type="range" min={1} max={20} step={1} value={pM}
               onChange={e => setPM(+e.target.value)}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <div style={{ marginTop: 8, fontSize: '16px', fontWeight: 'bold', color: PENDULUM_COLOR }}>
               T = {T_pendulum.toFixed(2)} s
@@ -293,12 +307,12 @@ export default function HarmonicMotion() {
             <label style={lblStyle}>SPRING CONSTANT (k): {sK} N/m</label>
             <input type="range" min={10} max={100} step={1} value={sK}
               onChange={e => setSK(+e.target.value)}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>MASS (m): {sM.toFixed(1)} kg</label>
             <input type="range" min={1} max={20} step={1} value={sM}
               onChange={e => setSM(+e.target.value)}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <div style={{ marginTop: 8, fontSize: '16px', fontWeight: 'bold', color: SPRING_COLOR }}>
               T = {T_spring.toFixed(2)} s
@@ -314,29 +328,22 @@ export default function HarmonicMotion() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
-            {!started ? (
-              <button onClick={handleStart} style={startBtnStyle}>START</button>
-            ) : (
-              <button onClick={handleReset} style={resetBtnStyle}>RESET</button>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* Zamanı Durdur (Freeze) Butonu */}
+      {/* Play/Pause Butonu */}
       <button
-        onClick={() => setIsPaused(!isPaused)}
+        onClick={handlePlayPause}
         style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -345,9 +352,35 @@ export default function HarmonicMotion() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
-        title="Freeze Time"
+        title="Play / Pause"
       >
-        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+        {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+      </button>
+
+      {/* Reset Butonu */}
+      <button
+        onClick={handleReset}
+        style={{
+          position: 'absolute',
+          top: '310px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Reset Simulation"
+      >
+        <ResetIcon width={24} height={24} fill="#ffffff" />
       </button>
 
       {/* Hız Kontrol (Slow Motion) Butonu */}
@@ -355,7 +388,7 @@ export default function HarmonicMotion() {
         onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
         style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -379,7 +412,7 @@ export default function HarmonicMotion() {
       {speedPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -402,7 +435,7 @@ export default function HarmonicMotion() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -427,7 +460,7 @@ export default function HarmonicMotion() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -469,7 +502,7 @@ export default function HarmonicMotion() {
         <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2 + 0.2} />
 
         <SimulationEngine 
-          started={started} isPaused={isPaused} g={g} 
+          hasStarted={hasStarted} isPlaying={isPlaying} resetTrigger={resetTrigger} g={g} 
           pL={pL} pM={pM} setPState={setPState}
           sK={sK} sM={sM} setSState={setSState}
         />

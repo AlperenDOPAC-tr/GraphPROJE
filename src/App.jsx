@@ -8,6 +8,8 @@ import OpticsSimulation from "./OpticsSimulation"
 import OpticsInterference from "./OpticsInterference"
 import HarmonicMotion from "./HarmonicMotion"
 import AngularMomentum from "./AngularMomentum"
+import LightColors from "./LightColors"
+import { EyeIcon } from "./Icons"
 
 const simulations = [
   { id: "falling", name: "Free Fall", image: "/images/freefall.jpg" },
@@ -19,6 +21,7 @@ const simulations = [
   { id: "interference", name: "Double & Single Slit", image: "/images/doubleslit.jpg" },
   { id: "harmonic", name: "Harmonic Motion", image: "/images/harmonic.png" },
   { id: "angular", name: "Angular Momentum", image: "/images/angular.png" },
+  { id: "lightcolors", name: "Light Color Mixing", image: "/images/lightcolors.jpg" }
 ]
 
 export default function App() {
@@ -31,6 +34,17 @@ export default function App() {
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange)
   }, [])
+
+  const [uiHidden, setUiHidden] = useState(false)
+  React.useEffect(() => {
+    if (uiHidden) document.body.classList.add('hide-ui')
+    else document.body.classList.remove('hide-ui')
+  }, [uiHidden])
+
+  React.useEffect(() => {
+    // Menüden başka simülasyona geçince odak modunu (hide-ui) kapat
+    setUiHidden(false)
+  }, [mode])
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -73,6 +87,19 @@ export default function App() {
         <svg fill={isFullscreen ? '#000000' : '#ffffff'} width="24" height="24" viewBox="0 0 1920 1920" xmlns="http://www.w3.org/2000/svg">
           <path d="M1146.616-.012V232.38h376.821L232.391 1523.309v-376.705H0V1920h773.629v-232.39H396.69L1687.737 396.68V773.5h232.275V-.011z" fillRule="evenodd"></path>
         </svg>
+      </button>
+
+      {/* FOCUS MODE (EYE) BUTONU */}
+      <button
+        onClick={() => setUiHidden(!uiHidden)}
+        style={{
+          ...menuToggleStyle,
+          top: '136px',
+          background: uiHidden ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+        }}
+        title="Toggle Focus Mode"
+      >
+        <EyeIcon width={24} height={24} fill={uiHidden ? '#000000' : '#ffffff'} />
       </button>
 
       {/* OVERLAY */}
@@ -119,6 +146,7 @@ export default function App() {
       { mode === "interference" && <OpticsInterference /> }
       { mode === "harmonic" && <HarmonicMotion /> }
       { mode === "angular" && <AngularMomentum /> }
+      { mode === "lightcolors" && <LightColors /> }
     </div>
   )
 }

@@ -382,7 +382,7 @@ export default function ForceVectors() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#000000" }}>
 
       {/* ─── KONTROL PANELİ ───────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
         <div style={{
           background: 'rgba(255,255,255,0.7)',
           backdropFilter: 'blur(6px)',
@@ -634,7 +634,7 @@ export default function ForceVectors() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -657,7 +657,7 @@ export default function ForceVectors() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',

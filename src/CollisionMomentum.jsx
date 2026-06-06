@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react"
-import { LightBulbIcon, TimeIcon, SpeedIcon } from './Icons'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
 import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
@@ -139,10 +139,10 @@ function VelocityArrow({ posX, posZ, vx, vz, color, label }) {
 // ─── 3D SAHNE ────────────────────────────────────────────────────────────────
 function Scene({
   cube1, cube2, setCube1, setCube2,
-  started, isPaused, collisionType,
+  hasStarted, isPlaying, collisionType,
   simData, setSimData,
   collided, setCollided,
-  lightAngle, lightIntensity
+  lightAngle, lightIntensity, resetTrigger
 }) {
   const { camera, gl } = useThree()
   const controlsRef = useRef()
@@ -171,25 +171,23 @@ function Scene({
 
   // ── Simülasyon başlatma ──
   useEffect(() => {
-    if (started) {
-      pos1.current = { x: cube1.x, z: cube1.z }
-      pos2.current = { x: cube2.x, z: cube2.z }
+    pos1.current = { x: cube1.x, z: cube1.z }
+    pos2.current = { x: cube2.x, z: cube2.z }
 
-      const r1 = cube1.angle * Math.PI / 180
-      vel1.current = { x: cube1.speed * Math.cos(r1), z: -cube1.speed * Math.sin(r1) }
+    const r1 = cube1.angle * Math.PI / 180
+    vel1.current = { x: cube1.speed * Math.cos(r1), z: -cube1.speed * Math.sin(r1) }
 
-      const r2 = cube2.angle * Math.PI / 180
-      vel2.current = { x: cube2.speed * Math.cos(r2), z: -cube2.speed * Math.sin(r2) }
+    const r2 = cube2.angle * Math.PI / 180
+    vel2.current = { x: cube2.speed * Math.cos(r2), z: -cube2.speed * Math.sin(r2) }
 
-      collidedRef.current = false
-      mergedRef.current = false
-    }
-  }, [started])
+    collidedRef.current = false
+    mergedRef.current = false
+  }, [resetTrigger])
 
   // ── Sürükleme (Drag) yönetimi ──
   useEffect(() => {
     const onMove = (e) => {
-      if (!draggingRef.current || started) return
+      if (!draggingRef.current || hasStarted) return
 
       const rect = gl.domElement.getBoundingClientRect()
       const mouse = new THREE.Vector2(
@@ -224,10 +222,10 @@ function Scene({
       gl.domElement.removeEventListener('pointermove', onMove)
       gl.domElement.removeEventListener('pointerup', onUp)
     }
-  }, [camera, gl, started, setCube1, setCube2, groundPlane])
+  }, [camera, gl, hasStarted, setCube1, setCube2, groundPlane])
 
   const startDrag = (id) => (e) => {
-    if (started) return
+    if (hasStarted) return
     e.stopPropagation()
     draggingRef.current = id
     gl.domElement.style.cursor = 'grabbing'
@@ -237,13 +235,13 @@ function Scene({
   // ── Fizik döngüsü ──
   useFrame((_, delta) => {
     // Başlamadan önce: config'ten pozisyon güncelle
-    if (!started) {
+    if (!hasStarted) {
       if (group1Ref.current) group1Ref.current.position.set(cube1.x, 1, cube1.z)
       if (group2Ref.current) group2Ref.current.position.set(cube2.x, 1, cube2.z)
       return
     }
 
-    if (isPaused) return
+    if (!isPlaying) return
 
     const dt = Math.min(delta, 1 / 30)
 
@@ -331,7 +329,7 @@ function Scene({
   // ── Ok parametreleri hesapla ──
   let aPos1, aPos2, aVx1, aVz1, aVx2, aVz2, aSpd1, aSpd2
 
-  if (started && simData) {
+  if (hasStarted && simData) {
     aPos1 = simData.pos1; aPos2 = simData.pos2
     aVx1 = simData.vel1.x; aVz1 = simData.vel1.z
     aVx2 = simData.vel2.x; aVz2 = simData.vel2.z
@@ -359,7 +357,7 @@ function Scene({
         <mesh
           castShadow
           onPointerDown={startDrag(1)}
-          onPointerEnter={() => { if (!started && !draggingRef.current) gl.domElement.style.cursor = 'grab' }}
+          onPointerEnter={() => { if (!hasStarted && !draggingRef.current) gl.domElement.style.cursor = 'grab' }}
           onPointerLeave={() => { if (!draggingRef.current) gl.domElement.style.cursor = 'default' }}
         >
           <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
@@ -385,7 +383,7 @@ function Scene({
         <mesh
           castShadow
           onPointerDown={startDrag(2)}
-          onPointerEnter={() => { if (!started && !draggingRef.current) gl.domElement.style.cursor = 'grab' }}
+          onPointerEnter={() => { if (!hasStarted && !draggingRef.current) gl.domElement.style.cursor = 'grab' }}
           onPointerLeave={() => { if (!draggingRef.current) gl.domElement.style.cursor = 'default' }}
         >
           <boxGeometry args={[CUBE_SIZE, CUBE_SIZE, CUBE_SIZE]} />
@@ -417,8 +415,11 @@ export default function CollisionMomentum() {
   const [cube1, setCube1] = useState({ x: -8, z: 0, mass: 25, speed: 8, angle: 0 })
   const [cube2, setCube2] = useState({ x: 8, z: 0, mass: 25, speed: 8, angle: 180 })
   const [collisionType, setCollisionType] = useState('elastic')
-  const [started, setStarted] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
+  
+  const [hasStarted, setHasStarted] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [resetTrigger, setResetTrigger] = useState(0)
+
   const [speedPanelOpen, setSpeedPanelOpen] = useState(false)
   const [timeScale, setTimeScale] = useState(1)
   const [collided, setCollided] = useState(false)
@@ -428,8 +429,25 @@ export default function CollisionMomentum() {
   const [lightIntensity, setLightIntensity] = useState(1.5)
   const [lightPanelOpen, setLightPanelOpen] = useState(false)
 
-  const handleStart = () => { setCollided(false); setSimData(null); setStarted(true) }
-  const handleReset = () => { setStarted(false); setCollided(false); setSimData(null) }
+  const handlePlayPause = () => {
+    if (!hasStarted) {
+      setCollided(false)
+      setSimData(null)
+      setHasStarted(true)
+      setIsPlaying(true)
+      setResetTrigger(prev => prev + 1)
+    } else {
+      setIsPlaying(!isPlaying)
+    }
+  }
+
+  const handleReset = () => { 
+    setHasStarted(false)
+    setIsPlaying(false)
+    setCollided(false)
+    setSimData(null)
+    setResetTrigger(prev => prev + 1)
+  }
 
   // ── Momentum hesaplamaları ──
   const p1_before = cube1.mass * cube1.speed
@@ -445,7 +463,7 @@ export default function CollisionMomentum() {
   let p1_now = p1_before, p2_now = p2_before
   let totalP_now = totalP_before
 
-  if (started && simData) {
+  if (hasStarted && simData) {
     speed1_now = Math.sqrt(simData.vel1.x ** 2 + simData.vel1.z ** 2)
     speed2_now = Math.sqrt(simData.vel2.x ** 2 + simData.vel2.z ** 2)
     p1_now = cube1.mass * speed1_now
@@ -461,8 +479,8 @@ export default function CollisionMomentum() {
     <div style={{ width: "100vw", height: "100vh", position: "relative", background: "#000000" }}>
 
       {/* ─── KONTROL PANELİ ───────────────────────────────────────────── */}
-      <div style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
-        <div style={panelStyle}>
+      <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
+        <div className="left-panel" style={panelStyle}>
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>
             COLLISION & MOMENTUM
           </h3>
@@ -477,27 +495,27 @@ export default function CollisionMomentum() {
             <label style={lblStyle}>POSITION X: {cube1.x.toFixed(1)}</label>
             <input type="range" min={-22} max={22} step={0.5} value={cube1.x}
               onChange={e => setCube1(p => ({ ...p, x: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>POSITION Z: {cube1.z.toFixed(1)}</label>
             <input type="range" min={-22} max={22} step={0.5} value={cube1.z}
               onChange={e => setCube1(p => ({ ...p, z: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>MASS: {cube1.mass} kg</label>
             <input type="range" min={1} max={50} step={1} value={cube1.mass}
               onChange={e => setCube1(p => ({ ...p, mass: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>SPEED: {cube1.speed} m/s</label>
             <input type="range" min={0} max={20} step={0.5} value={cube1.speed}
               onChange={e => setCube1(p => ({ ...p, speed: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>DIRECTION: {cube1.angle}°</label>
             <input type="range" min={0} max={360} step={1} value={cube1.angle}
               onChange={e => setCube1(p => ({ ...p, angle: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             {/* Momentum göstergesi */}
             <div style={{ marginTop: 4 }}>
@@ -521,27 +539,27 @@ export default function CollisionMomentum() {
             <label style={lblStyle}>POSITION X: {cube2.x.toFixed(1)}</label>
             <input type="range" min={-22} max={22} step={0.5} value={cube2.x}
               onChange={e => setCube2(p => ({ ...p, x: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>POSITION Z: {cube2.z.toFixed(1)}</label>
             <input type="range" min={-22} max={22} step={0.5} value={cube2.z}
               onChange={e => setCube2(p => ({ ...p, z: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>MASS: {cube2.mass} kg</label>
             <input type="range" min={1} max={50} step={1} value={cube2.mass}
               onChange={e => setCube2(p => ({ ...p, mass: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>SPEED: {cube2.speed} m/s</label>
             <input type="range" min={0} max={20} step={0.5} value={cube2.speed}
               onChange={e => setCube2(p => ({ ...p, speed: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <label style={lblStyle}>DIRECTION: {cube2.angle}°</label>
             <input type="range" min={0} max={360} step={1} value={cube2.angle}
               onChange={e => setCube2(p => ({ ...p, angle: +e.target.value }))}
-              disabled={started} style={{ width: '100%', marginBottom: 6 }} />
+              disabled={hasStarted} style={{ width: '100%', marginBottom: 6 }} />
 
             <div style={{ marginTop: 4 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -561,7 +579,7 @@ export default function CollisionMomentum() {
               <button
                 id="btn-elastic"
                 onClick={() => setCollisionType('elastic')}
-                disabled={started}
+                disabled={hasStarted}
                 style={toggleBtnStyle(collisionType === 'elastic', '#4caf50')}
               >
                 ELASTIC
@@ -569,7 +587,7 @@ export default function CollisionMomentum() {
               <button
                 id="btn-inelastic"
                 onClick={() => setCollisionType('inelastic')}
-                disabled={started}
+                disabled={hasStarted}
                 style={toggleBtnStyle(collisionType === 'inelastic', '#ff9800')}
               >
                 INELASTIC
@@ -624,28 +642,22 @@ export default function CollisionMomentum() {
             </div>
           )}
 
-          {/* ── START / RESET ── */}
-          {!started ? (
-            <button id="btn-start" onClick={handleStart} style={startBtnStyle}>START</button>
-          ) : (
-            <button id="btn-reset" onClick={handleReset} style={resetBtnStyle}>RESET</button>
-          )}
         </div>
       </div>
 
-      {/* Zamanı Durdur (Freeze) Butonu */}
+      {/* Play/Pause Butonu */}
       <button
-        onClick={() => setIsPaused(!isPaused)}
+        onClick={handlePlayPause}
         style={{
           position: 'absolute',
-          top: '194px',
+          top: '252px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
           height: '48px',
           borderRadius: '14px',
           border: 'none',
-          background: isPaused ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          background: isPlaying ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
           backdropFilter: 'blur(12px)',
           cursor: 'pointer',
           display: 'flex',
@@ -654,9 +666,35 @@ export default function CollisionMomentum() {
           boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
           transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
         }}
-        title="Freeze Time"
+        title="Play / Pause"
       >
-        <TimeIcon width={24} height={24} stroke={isPaused ? '#000000' : '#ffffff'} />
+        {isPlaying ? <PauseIcon width={24} height={24} fill="#000000" /> : <PlayIcon width={24} height={24} fill="#ffffff" />}
+      </button>
+
+      {/* Reset Butonu */}
+      <button
+        onClick={handleReset}
+        style={{
+          position: 'absolute',
+          top: '310px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Reset Simulation"
+      >
+        <ResetIcon width={24} height={24} fill="#ffffff" />
       </button>
 
       {/* Hız Kontrol (Slow Motion) Butonu */}
@@ -664,7 +702,7 @@ export default function CollisionMomentum() {
         onClick={() => setSpeedPanelOpen(!speedPanelOpen)}
         style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -688,7 +726,7 @@ export default function CollisionMomentum() {
       {speedPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '252px',
+          top: '368px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -711,7 +749,7 @@ export default function CollisionMomentum() {
         onClick={() => setLightPanelOpen(!lightPanelOpen)}
         style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '24px',
           zIndex: 1000,
           width: '48px',
@@ -734,7 +772,7 @@ export default function CollisionMomentum() {
       {lightPanelOpen && (
         <div style={{
           position: 'absolute',
-          top: '136px',
+          top: '194px',
           right: '82px',
           zIndex: 999,
           background: 'rgba(255,255,255,0.85)',
@@ -761,7 +799,7 @@ export default function CollisionMomentum() {
         <Scene
           cube1={cube1} cube2={cube2}
           setCube1={setCube1} setCube2={setCube2}
-          started={started} isPaused={isPaused} collisionType={collisionType}
+          hasStarted={hasStarted} isPlaying={isPlaying} resetTrigger={resetTrigger} collisionType={collisionType}
           simData={simData} setSimData={setSimData}
           collided={collided} setCollided={setCollided}
           lightAngle={lightAngle} lightIntensity={lightIntensity}
