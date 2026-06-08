@@ -10,6 +10,10 @@ import HarmonicMotion from "./HarmonicMotion"
 import AngularMomentum from "./AngularMomentum"
 import LightColors from "./LightColors"
 import { EyeIcon } from "./Icons"
+import WaterWaves from "./WaterWaves"
+import PressureSim from "./PressureSim"
+import BuoyancySim from "./BuoyancySim"
+import ErrorBoundary from "./ErrorBoundary"
 
 const simulations = [
   { id: "falling", name: "Free Fall", image: "/images/freefall.jpg" },
@@ -21,13 +25,21 @@ const simulations = [
   { id: "interference", name: "Double & Single Slit", image: "/images/doubleslit.jpg" },
   { id: "harmonic", name: "Harmonic Motion", image: "/images/harmonic.png" },
   { id: "angular", name: "Angular Momentum", image: "/images/angular.png" },
-  { id: "lightcolors", name: "Light Color Mixing", image: "/images/lightcolors.jpg" }
+  { id: "lightcolors", name: "Light Color Mixing", image: "/images/lightcolors.jpg" },
+  { id: "waterwaves", name: "Water Waves", image: "/images/waters.jpg" },
+  { id: "pressure", name: "Solid Pressure", image: "/images/pressure.png" },
+  { id: "buoyancy", name: "Buoyancy", image: "/images/buoyancy.png" }
 ]
 
 export default function App() {
   const [mode, setMode] = useState("falling")
   const [menuOpen, setMenuOpen] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [currentPage, setCurrentPage] = useState(0)
+
+  const itemsPerPage = 8
+  const totalPages = Math.ceil(simulations.length / itemsPerPage)
+  const displayedSims = simulations.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)
 
   React.useEffect(() => {
     const handleFullscreenChange = () => setIsFullscreen(!!document.fullscreenElement)
@@ -114,7 +126,7 @@ export default function App() {
       {/* MENÜ PANELİ */}
       <div style={panelStyle(menuOpen)}>
         <div style={cardsContainerStyle}>
-          {simulations.map((sim) => (
+          {displayedSims.map((sim) => (
             <div
               key={sim.id}
               id={`sim-card-${sim.id}`}
@@ -134,19 +146,47 @@ export default function App() {
             </div>
           ))}
         </div>
+
+        {/* PAGINATION CONTROLS */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px', marginTop: '24px' }}>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+              disabled={currentPage === 0}
+              style={paginationBtnStyle(currentPage === 0)}
+            >
+              Previous
+            </button>
+            <span style={{ fontSize: '13px', fontWeight: 'normal', fontFamily: 'Arial, sans-serif', color: '#475569' }}>
+              Page {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={currentPage === totalPages - 1}
+              style={paginationBtnStyle(currentPage === totalPages - 1)}
+            >
+              Next
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Seçilen simülasyonu yükle */}
-      {mode === "falling" && <FallingCubes />}
-      {mode === "ramp" && <InclinedPlane />}
-      {mode === "projectile" && <ProjectileMotion />}
-      {mode === "forces" && <ForceVectors />}
-      {mode === "collision" && <CollisionMomentum />}
-      {mode === "optics" && <OpticsSimulation />}
-      { mode === "interference" && <OpticsInterference /> }
-      { mode === "harmonic" && <HarmonicMotion /> }
-      { mode === "angular" && <AngularMomentum /> }
-      { mode === "lightcolors" && <LightColors /> }
+      <ErrorBoundary>
+        {mode === "falling" && <FallingCubes />}
+        {mode === "ramp" && <InclinedPlane />}
+        {mode === "projectile" && <ProjectileMotion />}
+        {mode === "forces" && <ForceVectors />}
+        {mode === "collision" && <CollisionMomentum />}
+        {mode === "optics" && <OpticsSimulation />}
+        {mode === "interference" && <OpticsInterference />}
+        {mode === "harmonic" && <HarmonicMotion />}
+        {mode === "angular" && <AngularMomentum />}
+        {mode === "lightcolors" && <LightColors />}
+        {mode === "waterwaves" && <WaterWaves />}
+        {mode === "pressure" && <PressureSim />}
+        {mode === "buoyancy" && <BuoyancySim />}
+      </ErrorBoundary>
     </div>
   )
 }
@@ -270,3 +310,16 @@ const cardNameStyle = {
   color: '#333',
   fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
 }
+
+const paginationBtnStyle = (disabled) => ({
+  padding: '8px 20px',
+  background: disabled ? '#e2e8f0' : '#000000',
+  color: disabled ? '#94a3b8' : '#ffffff',
+  border: 'none',
+  borderRadius: '8px',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  fontWeight: '600',
+  fontSize: '13px',
+  transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+  boxShadow: disabled ? 'none' : '0 4px 12px rgba(0,0,0,0.25)',
+})
