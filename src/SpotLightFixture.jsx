@@ -46,32 +46,9 @@ export default function SpotLightFixture({
 
   return (
     <group ref={groupRef}>
-      {/* ── Ana Gövde (koyu metal silindir) ── */}
-      <mesh position={[0, height * 0.3, 0]}>
-        <cylinderGeometry args={[radius * 0.6, radius, height * 0.6, 16]} />
-        <meshStandardMaterial
-          color="#f5e6a3"
-          metalness={0.7}
-          roughness={0.35}
-        />
-      </mesh>
-
-      {/* ── Lens / Cam (parıltılı ışık yüzeyi) ── */}
-      <mesh position={[0, -height * 0.05, 0]}>
-        <cylinderGeometry args={[radius * 1.05, radius * 0.9, height * 0.15, 16]} />
-        <meshStandardMaterial
-          color={color}
-          emissive={color}
-          emissiveIntensity={emissiveIntensity}
-          transparent
-          opacity={0.92}
-          toneMapped={false}
-        />
-      </mesh>
-
-      {/* ── Spot ışığı (gerçek ışık kaynağı, opsiyonel parlaklık ekler) ── */}
+      {/* ── Spot ışığı (gerçek ışık kaynağı, parlaklık ekler) ── */}
       <spotLight
-        position={[0, -height * 0.1, 0]}
+        position={[0, 0, 0]}
         angle={Math.PI / 6}
         penumbra={0.6}
         intensity={intensity * 8}
@@ -80,12 +57,6 @@ export default function SpotLightFixture({
         castShadow={false}
         target-position={[0, -100, 0]}
       />
-
-      {/* ── Montaj halka ── */}
-      <mesh position={[0, height * 0.6, 0]}>
-        <torusGeometry args={[radius * 0.35, 0.08, 8, 16]} />
-        <meshStandardMaterial color="#333" metalness={0.8} roughness={0.4} />
-      </mesh>
     </group>
   )
 }

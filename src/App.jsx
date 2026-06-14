@@ -13,6 +13,10 @@ import { EyeIcon } from "./Icons"
 import WaterWaves from "./WaterWaves"
 import PressureSim from "./PressureSim"
 import BuoyancySim from "./BuoyancySim"
+import CapacitorSim from "./CapacitorSim"
+import TransformerSim from "./TransformerSim"
+import InductionSim from "./InductionSim"
+import MagneticFieldSim from "./MagneticFieldSim"
 import ErrorBoundary from "./ErrorBoundary"
 
 const simulations = [
@@ -28,7 +32,11 @@ const simulations = [
   { id: "lightcolors", name: "Light Color Mixing", image: "/images/lightcolors.jpg" },
   { id: "waterwaves", name: "Water Waves", image: "/images/waters.jpg" },
   { id: "pressure", name: "Solid Pressure", image: "/images/pressure.png" },
-  { id: "buoyancy", name: "Buoyancy", image: "/images/buoyancy.png" }
+  { id: "buoyancy", name: "Buoyancy", image: "/images/buoyancy.png" },
+  { id: "capacitor", name: "Capacitor", image: "/images/capacitor.jpg" },
+  { id: "transformer", name: "Transformers", image: "/images/transformer.jpg" },
+  { id: "induction", name: "Induction", image: "/images/induction.jpg" },
+  { id: "magneticfield", name: "Magnetic Field", image: "/images/magnetic.png" }
 ]
 
 export default function App() {
@@ -186,6 +194,10 @@ export default function App() {
         {mode === "waterwaves" && <WaterWaves />}
         {mode === "pressure" && <PressureSim />}
         {mode === "buoyancy" && <BuoyancySim />}
+        {mode === "capacitor" && <CapacitorSim />}
+        {mode === "transformer" && <TransformerSim />}
+        {mode === "induction" && <InductionSim />}
+        {mode === "magneticfield" && <MagneticFieldSim />}
       </ErrorBoundary>
     </div>
   )
