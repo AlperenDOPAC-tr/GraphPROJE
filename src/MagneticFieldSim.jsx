@@ -1,8 +1,8 @@
 import React, { useState, useRef, useMemo, useEffect } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { OrbitControls, Text, Line, Cylinder, Box, Sphere } from "@react-three/drei"
+import { OrbitControls, Text, Line, Cylinder, Box, Sphere, Billboard } from "@react-three/drei"
 import * as THREE from "three"
-import { LightBulbIcon, EyeIcon, PlayIcon, PauseIcon, ResetIcon, SpeedIcon } from "./Icons"
+import { LightBulbIcon, EyeIcon, PlayIcon, PauseIcon, ResetIcon, SpeedIcon, VectorIcon } from "./Icons"
 import SpotLightFixture from "./SpotLightFixture"
 
 // ─── CHECKER GROUND ───
@@ -255,9 +255,15 @@ function BFieldGrid({ bFieldDir, bStrength }) {
   )
 }
 
-function ModeLorentz({ chargeSign, chargeMag, particleMass, bFieldDir, velocity, bStrength, resetKey, isPlaying, timeScale }) {
+function ModeLorentz({ chargeSign, chargeMag, particleMass, bFieldDir, velocity, bStrength, resetKey, isPlaying, timeScale, showVectors }) {
   const particleRef = useRef()
   const trailRef = useRef()
+  const velGroup = useRef()
+  const forceGroup = useRef()
+  const bGroup = useRef()
+  const velTextRef = useRef()
+  const forceTextRef = useRef()
+  const bTextRef = useRef()
   const path = useRef([])
   const currentVel = useRef(new THREE.Vector3(velocity, 0, 0))
   const currentPos = useRef(new THREE.Vector3(-20, 5, 0))
@@ -293,6 +299,41 @@ function ModeLorentz({ chargeSign, chargeMag, particleMass, bFieldDir, velocity,
 
     particleRef.current.position.copy(currentPos.current)
 
+    // Update vector arrows
+    const updateArrow = (groupRef, dirVec, len) => {
+      if (groupRef.current && len > 0.1 && showVectors) {
+        groupRef.current.visible = true
+        groupRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec.clone().normalize())
+        groupRef.current.children[0].scale.y = len
+        groupRef.current.children[0].position.y = len / 2
+        groupRef.current.children[1].position.y = len
+      } else if (groupRef.current) {
+        groupRef.current.visible = false
+      }
+    }
+
+    const updateText = (textRef, dirVec, len) => {
+      if (textRef.current) {
+        if (len > 0.1 && showVectors) {
+          textRef.current.visible = true
+          textRef.current.position.copy(dirVec.clone().normalize().multiplyScalar(len + 0.8))
+        } else {
+          textRef.current.visible = false
+        }
+      }
+    }
+
+    updateArrow(velGroup, currentVel.current, velocity * 0.15)
+    updateText(velTextRef, currentVel.current, velocity * 0.15)
+    
+    updateArrow(forceGroup, a, a.length() * 0.15)
+    updateText(forceTextRef, a, a.length() * 0.15)
+    
+    const bDir = new THREE.Vector3(0, 0, bFieldDir)
+    const bLen = bStrength * 0.4
+    updateArrow(bGroup, bDir, bLen)
+    updateText(bTextRef, bDir, bLen)
+
     // Update trail geometry directly
     if (path.current.length === 0 || path.current[path.current.length-1].distanceTo(currentPos.current) > 0.5) {
       path.current.push(currentPos.current.clone())
@@ -320,7 +361,34 @@ function ModeLorentz({ chargeSign, chargeMag, particleMass, bFieldDir, velocity,
           <sphereGeometry args={[0.8, 32, 32]} />
           <meshStandardMaterial color={pColor} roughness={0.4} metalness={0.6} />
         </mesh>
-        <Text position={[0, 0, 1]} fontSize={1} color="#fff">{signText}</Text>
+        <Text position={[0, 0, 1.2]} fontSize={1} color="#fff">{signText}</Text>
+        
+        {/* VELOCITY VECTOR */}
+        <group ref={velGroup}>
+          <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#ef4444" /></mesh>
+          <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#ef4444" /></mesh>
+        </group>
+        <Billboard ref={velTextRef}>
+          <Text fontSize={1.2} color="#ef4444" outlineWidth={0.1} outlineColor="#fff" fontWeight="bold">v</Text>
+        </Billboard>
+
+        {/* FORCE VECTOR */}
+        <group ref={forceGroup}>
+          <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#eab308" /></mesh>
+          <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#eab308" /></mesh>
+        </group>
+        <Billboard ref={forceTextRef}>
+          <Text fontSize={1.2} color="#eab308" outlineWidth={0.1} outlineColor="#fff" fontWeight="bold">F</Text>
+        </Billboard>
+
+        {/* B-FIELD VECTOR */}
+        <group ref={bGroup}>
+          <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#06b6d4" /></mesh>
+          <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#06b6d4" /></mesh>
+        </group>
+        <Billboard ref={bTextRef}>
+          <Text fontSize={1.2} color="#06b6d4" outlineWidth={0.1} outlineColor="#fff" fontWeight="bold">B</Text>
+        </Billboard>
       </group>
       
       {/* Start Gun / Emitter visual */}
@@ -350,6 +418,7 @@ export default function MagneticFieldSim() {
   const [bFieldDir, setBFieldDir] = useState(-1) // -1 (In, Cross), +1 (Out, Dot)
   const [velocity, setVelocity] = useState(15)
   const [bStrength, setBStrength] = useState(5)
+  const [showVectors, setShowVectors] = useState(true)
 
   // Global standard state
   const [isPlaying, setIsPlaying] = useState(true)
@@ -448,7 +517,6 @@ export default function MagneticFieldSim() {
         {/* LORENTZ FORCE UI */}
         {activeTab === "lorentz" && (
           <div style={cardStyle}>
-
             <label style={lblStyle}>CHARGE SIGN (q)</label>
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
               <button onClick={() => setChargeSign(1)} style={{ flex: 1, padding: "8px", borderRadius: "8px", border: chargeSign === 1 ? "2px solid #ef4444" : "1px solid #cbd5e1", background: chargeSign === 1 ? "#fee2e2" : "#fff", color: "#ef4444", fontWeight: "bold", cursor: "pointer" }}>
@@ -524,6 +592,15 @@ export default function MagneticFieldSim() {
         <SpeedIcon width={24} height={24} fill={timeScale !== 1 ? "#000000" : "#ffffff"} />
       </button>
 
+      {/* VECTOR TOGGLE (426px) */}
+      {activeTab === "lorentz" && (
+        <button onClick={() => setShowVectors(!showVectors)}
+          className="ui-element"
+          style={{ ...iconBtnStyle(!showVectors), top: "426px" }} title="Toggle Vectors">
+          <VectorIcon width={24} height={24} fill={showVectors ? "#fff" : "#000"} />
+        </button>
+      )}
+
       {lightPanelOpen && (
         <div className="ui-element" style={{ position: "absolute", top: "194px", right: "82px", zIndex: 999,
           background: "rgba(255,255,255,0.9)", backdropFilter: "blur(12px)",
@@ -561,7 +638,7 @@ export default function MagneticFieldSim() {
         
         <gridHelper args={[100, 100, "#334155", "#1e293b"]} position={[0, -0.5, 0]} />
         {activeTab === "oersted" && <ModeOersted i1={i1} i2={i2} wireDist={wireDist} pointX={pointX} isPlaying={isPlaying} timeScale={timeScale} />}
-        {activeTab === "lorentz" && <ModeLorentz chargeSign={chargeSign} chargeMag={chargeMag} particleMass={particleMass} bFieldDir={bFieldDir} velocity={velocity} bStrength={bStrength} resetKey={resetKey} isPlaying={isPlaying} timeScale={timeScale} />}
+        {activeTab === "lorentz" && <ModeLorentz chargeSign={chargeSign} chargeMag={chargeMag} particleMass={particleMass} bFieldDir={bFieldDir} velocity={velocity} bStrength={bStrength} resetKey={resetKey} isPlaying={isPlaying} timeScale={timeScale} showVectors={showVectors} />}
       </Canvas>
     </div>
   )

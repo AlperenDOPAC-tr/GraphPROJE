@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from "react"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { OrbitControls, Text, Line, Cylinder, Box, Sphere } from "@react-three/drei"
 import * as THREE from "three"
-import { LightBulbIcon, EyeIcon } from "./Icons"
+import { LightBulbIcon, EyeIcon, PlayIcon, PauseIcon, ResetIcon, VectorIcon } from "./Icons"
 import SpotLightFixture from "./SpotLightFixture"
 
 // ─── CHECKER GROUND ───
@@ -78,17 +78,14 @@ function ModeFlux({ bField, area, angle }) {
       })}
       <BFieldParticles count={bField * 10} />
 
-      <group position={[0, 5, 0]} rotation={[0, (angle * Math.PI) / 180, 0]}>
+      <group position={[0, 5, 0]} rotation={[0, (angle * Math.PI) / 180 + Math.PI/2, 0]}>
         <mesh castShadow>
           <torusGeometry args={[side, 0.2, 16, 4]} />
           <meshStandardMaterial color="#facc15" metalness={0.9} roughness={0.1} />
         </mesh>
-        <mesh rotation={[Math.PI/2, 0, 0]}>
-          <planeGeometry args={[side*2, side*2]} />
-          <meshBasicMaterial color="#22c55e" transparent opacity={0.2} side={THREE.DoubleSide} />
-        </mesh>
-        <Arrow start={[0,0,0]} end={[0,0,side + 2]} color="#22c55e" />
-        <Text position={[0, 0.5, side + 2.5]} fontSize={1} color="#22c55e" outlineWidth={0.05} outlineColor="#000">n</Text>
+        {/* Removed transparent green plane (the 'glow' effect) */}
+        <Arrow start={[0,0,0]} end={[0, 0, 2.5]} color="#22c55e" headSize={0.4} />
+        <Text position={[0, 0.5, 3.2]} fontSize={1.2} color="#22c55e" outlineWidth={0.05} outlineColor="#000" fontWeight="bold">n</Text>
       </group>
     </group>
   )
@@ -127,45 +124,172 @@ function BFieldParticles({ count }) {
 }
 
 // ─── MOD 2: FARADAY (MAGNET & COIL) ───
-function ModeFaraday({ magnetX, magnetStr, turns }) {
-  const [velocity, setVelocity] = useState(0)
-  const prevX = useRef(magnetX)
+function ModeFaraday({ magnetX, magnetStr, turns, autoSpeed, magnetFlip, showVectors }) {
+  const currentPos = useRef(magnetX)
+  const prevPos = useRef(magnetX)
+  const dir = useRef(1)
+  const smoothedV = useRef(0)
   
+  const magnetGroupRef = useRef()
+  const bulbMeshRef = useRef()
+  const pointLightRef = useRef()
+
+  const velGroup = useRef()
+  const forceGroup = useRef()
+  const bGroup = useRef()
+  const velTextRef = useRef()
+  const forceTextRef = useRef()
+  const bTextRef = useRef()
+
   useFrame((state, delta) => {
-    const v = (magnetX - prevX.current) / (delta || 0.01)
-    setVelocity(v)
-    prevX.current = magnetX
+    const dt = Math.min(delta, 0.05)
+    let rawV = 0
+    if (autoSpeed > 0) {
+      currentPos.current += dir.current * autoSpeed * dt
+      rawV = dir.current * autoSpeed
+      if (currentPos.current > 15) {
+        currentPos.current = 15; dir.current = -1
+      }
+      if (currentPos.current < -15) {
+        currentPos.current = -15; dir.current = 1
+      }
+      prevPos.current = currentPos.current
+    } else {
+      rawV = (magnetX - prevPos.current) / dt
+      prevPos.current = magnetX
+      currentPos.current = magnetX
+    }
+
+    if (magnetGroupRef.current) {
+      magnetGroupRef.current.position.x = currentPos.current
+    }
+
+    smoothedV.current = THREE.MathUtils.lerp(smoothedV.current, rawV, 0.15)
+
+    // Realistic EMF Physics: e = -N * v * d(Phi)/dx
+    // Flux gradient shape: x * exp(-0.08 * x^2)
+    const x = currentPos.current
+    const fluxGradient = x * Math.exp(-0.08 * x * x)
+    const emfVal = Math.abs(smoothedV.current * fluxGradient * magnetStr * turns * 0.15)
 
     // Direct DOM manipulation for UI bar to avoid React re-renders every frame
-    const emfVal = Math.abs(v * magnetStr * turns * 0.05)
     const domBar = document.getElementById("ui-emf-bar-fill")
     const domText = document.getElementById("ui-emf-text")
     if (domBar && domText) {
-      const widthPercent = Math.min(100, (emfVal / 5) * 100)
+      // Divided by 30 so it reaches 100% when emfVal is around 900
+      const widthPercent = Math.min(100, (Math.sqrt(emfVal) / 30) * 100)
       domBar.style.width = `${widthPercent}%`
-      domBar.style.background = emfVal > 3 ? "#ef4444" : "#facc15"
+      domBar.style.background = emfVal > 800 ? "#ef4444" : "#facc15"
       domText.innerText = emfVal.toFixed(1) + " V"
     }
-  })
 
-  const emf = Math.abs(velocity * magnetStr * turns * 0.05)
-  const intensity = Math.min(5, emf)
-  const bulbColor = "#facc15" // Always glow yellow
+    // Direct 3D manipulation for Lightbulb
+    const intensity = Math.min(10, Math.sqrt(emfVal) * 0.3)
+    if (bulbMeshRef.current && pointLightRef.current) {
+      if (intensity > 0.1) {
+        bulbMeshRef.current.material.color.set("#facc15")
+        bulbMeshRef.current.material.emissive.set("#facc15")
+        bulbMeshRef.current.material.emissiveIntensity = intensity * 0.2
+        bulbMeshRef.current.material.opacity = 0.8
+        pointLightRef.current.intensity = intensity * 2
+      } else {
+        bulbMeshRef.current.material.color.set("#94a3b8")
+        bulbMeshRef.current.material.emissive.set("#000000")
+        bulbMeshRef.current.material.opacity = 0.6
+        pointLightRef.current.intensity = 0
+      }
+    }
+
+    // Update vector arrows on the magnet
+    const updateArrow = (groupRef, dirVec, len) => {
+      if (groupRef.current && len > 0.1) {
+        groupRef.current.visible = true
+        groupRef.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dirVec.clone().normalize())
+        groupRef.current.children[0].scale.y = len
+        groupRef.current.children[0].position.y = len / 2
+        groupRef.current.children[1].position.y = len
+      } else if (groupRef.current) {
+        groupRef.current.visible = false
+      }
+    }
+
+    const updateText = (textRef, basePos, dirVec, len) => {
+      if (textRef.current) {
+        if (len > 0.1) {
+          textRef.current.visible = true
+          textRef.current.position.copy(basePos).addScaledVector(dirVec.clone().normalize(), len + 0.8)
+        } else {
+          textRef.current.visible = false
+        }
+      }
+    }
+
+    // Velocity vector
+    const vDir = new THREE.Vector3(smoothedV.current > 0 ? 1 : -1, 0, 0)
+    const vLen = Math.abs(smoothedV.current) * 0.2
+    updateArrow(velGroup, vDir, vLen)
+    updateText(velTextRef, new THREE.Vector3(0, 1.5, 0), vDir, vLen)
+    
+    // Lenz's Law opposing magnetic force (F)
+    const fDir = new THREE.Vector3(smoothedV.current > 0 ? -1 : 1, 0, 0)
+    const fLen = emfVal * 0.15
+    updateArrow(forceGroup, fDir, fLen)
+    updateText(forceTextRef, new THREE.Vector3(0, -1.5, 0), fDir, fLen)
+
+    // B-field of the magnet (points outward from N pole)
+    if (bGroup.current) {
+      const bDir = new THREE.Vector3(-magnetFlip, 0, 0)
+      const bLen = magnetStr * 0.5
+      bGroup.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), bDir)
+      bGroup.current.children[0].scale.y = bLen
+      bGroup.current.children[0].position.y = bLen / 2
+      bGroup.current.children[1].position.y = bLen
+
+      if (bTextRef.current) {
+        bTextRef.current.position.copy(new THREE.Vector3(magnetFlip === 1 ? -4 : 4, 0, 0)).addScaledVector(bDir, bLen + 0.8)
+      }
+    }
+  })
 
   return (
     <group>
       {/* Magnet */}
-      <group position={[magnetX, 6.5, 0]}>
+      <group ref={magnetGroupRef} position={[magnetX, 6.5, 0]}>
         <mesh position={[-2, 0, 0]} castShadow>
           <boxGeometry args={[4, 2, 2]} />
-          <meshStandardMaterial color="#ef4444" roughness={0.4} metalness={0.5} />
+          <meshStandardMaterial color={magnetFlip === 1 ? "#ef4444" : "#3b82f6"} roughness={0.4} metalness={0.5} />
         </mesh>
-        <Text position={[-3, 0, 1.1]} fontSize={1.2} color="#fff">N</Text>
+        <Text position={[-3, 0, 1.1]} fontSize={1.2} color="#fff">{magnetFlip === 1 ? "N" : "S"}</Text>
         <mesh position={[2, 0, 0]} castShadow>
           <boxGeometry args={[4, 2, 2]} />
-          <meshStandardMaterial color="#3b82f6" roughness={0.4} metalness={0.5} />
+          <meshStandardMaterial color={magnetFlip === 1 ? "#3b82f6" : "#ef4444"} roughness={0.4} metalness={0.5} />
         </mesh>
-        <Text position={[3, 0, 1.1]} fontSize={1.2} color="#fff">S</Text>
+        <Text position={[3, 0, 1.1]} fontSize={1.2} color="#fff">{magnetFlip === 1 ? "S" : "N"}</Text>
+
+        {showVectors && (
+          <>
+            {/* VELOCITY VECTOR */}
+            <group ref={velGroup} position={[0, 1.5, 0]}>
+              <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#ef4444" /></mesh>
+              <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#ef4444" /></mesh>
+            </group>
+            <Text ref={velTextRef} fontSize={1.3} color="#ef4444" outlineWidth={0.12} outlineColor="#fff" fontWeight="bold">v</Text>
+
+            {/* OPPOSING FORCE VECTOR (Lenz's Law) */}
+            <group ref={forceGroup} position={[0, -1.5, 0]}>
+              <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#eab308" /></mesh>
+              <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#eab308" /></mesh>
+            </group>
+            <Text ref={forceTextRef} fontSize={1.3} color="#eab308" outlineWidth={0.12} outlineColor="#fff" fontWeight="bold">F(Lenz)</Text>
+
+            {/* B-FIELD VECTOR */}
+            <group ref={bGroup} position={[magnetFlip === 1 ? -4 : 4, 0, 0]}>
+              <mesh position={[0, 1, 0]} castShadow><cylinderGeometry args={[0.1, 0.1, 1, 8]} /><meshBasicMaterial color="#06b6d4" /></mesh>
+              <mesh position={[0, 2, 0]} castShadow><coneGeometry args={[0.3, 0.6, 8]} /><meshBasicMaterial color="#06b6d4" /></mesh>
+            </group>
+            <Text ref={bTextRef} fontSize={1.3} color="#06b6d4" outlineWidth={0.12} outlineColor="#fff" fontWeight="bold">B</Text>
+          </>
+        )}
       </group>
 
       {/* Coil */}
@@ -186,13 +310,11 @@ function ModeFaraday({ magnetX, magnetStr, turns }) {
           <cylinderGeometry args={[0.6, 0.6, 1, 16]} />
           <meshStandardMaterial color="#475569" metalness={0.8} />
         </mesh>
-        <mesh position={[0, 1.2, 0]}>
+        <mesh position={[0, 1.2, 0]} ref={bulbMeshRef}>
           <sphereGeometry args={[1.2, 32, 32]} />
-          <meshStandardMaterial color={intensity > 0.1 ? bulbColor : "#94a3b8"} transparent opacity={0.6} />
+          <meshStandardMaterial color="#94a3b8" transparent opacity={0.6} />
         </mesh>
-        {intensity > 0.1 && (
-          <pointLight position={[0, 1.2, 0]} intensity={intensity * 2} color={bulbColor} distance={20} />
-        )}
+        <pointLight ref={pointLightRef} position={[0, 1.2, 0]} intensity={0} color="#facc15" distance={20} />
       </group>
     </group>
   )
@@ -212,6 +334,9 @@ export default function InductionSim() {
   const [magnetX, setMagnetX] = useState(15)
   const [magnetStr, setMagnetStr] = useState(5)
   const [turns, setTurns] = useState(5)
+  const [autoSpeed, setAutoSpeed] = useState(0) // 0=Manual, 10=Slow, 25=Medium, 50=Fast
+  const [magnetFlip, setMagnetFlip] = useState(1) // 1: N left, -1: N right
+  const [showVectors, setShowVectors] = useState(true)
 
   // Removed Oersted state
 
@@ -308,7 +433,21 @@ export default function InductionSim() {
             </div>
 
             <label style={lblStyle}>MAGNET POSITION (Drag Fast!)</label>
-            <input type="range" min={-15} max={15} step={0.1} value={magnetX} onChange={e => setMagnetX(+e.target.value)} style={{ width: "100%", marginBottom: "16px", accentColor: "#ef4444" }} />
+            <input type="range" min={-15} max={15} step={0.1} value={magnetX} onChange={e => { setMagnetX(+e.target.value); setAutoSpeed(0); }} style={{ width: "100%", marginBottom: "16px", accentColor: "#ef4444" }} disabled={autoSpeed > 0} />
+            
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <button onClick={() => setMagnetFlip(f => -f)} style={{ flex: 1, padding: "10px", background: "#f1f5f9", border: "2px solid #cbd5e1", borderRadius: "8px", fontWeight: "bold", cursor: "pointer", color: "#334155" }}>
+                FLIP POLES ({magnetFlip === 1 ? "N-S" : "S-N"})
+              </button>
+            </div>
+
+            <label style={lblStyle}>AUTO MOVE MAGNET</label>
+            <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+              <button onClick={() => setAutoSpeed(0)} style={{ flex: 1, padding: "6px", background: autoSpeed === 0 ? "#ef4444" : "#fff", color: autoSpeed === 0 ? "#fff" : "#475569", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>MANUAL</button>
+              <button onClick={() => setAutoSpeed(15)} style={{ flex: 1, padding: "6px", background: autoSpeed === 15 ? "#ef4444" : "#fff", color: autoSpeed === 15 ? "#fff" : "#475569", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>SLOW</button>
+              <button onClick={() => setAutoSpeed(30)} style={{ flex: 1, padding: "6px", background: autoSpeed === 30 ? "#ef4444" : "#fff", color: autoSpeed === 30 ? "#fff" : "#475569", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>MED</button>
+              <button onClick={() => setAutoSpeed(60)} style={{ flex: 1, padding: "6px", background: autoSpeed === 60 ? "#ef4444" : "#fff", color: autoSpeed === 60 ? "#fff" : "#475569", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold" }}>FAST</button>
+            </div>
             
             <label style={lblStyle}>MAGNET STRENGTH: {magnetStr} T</label>
             <input type="range" min={1} max={10} step={1} value={magnetStr} onChange={e => setMagnetStr(+e.target.value)} style={{ width: "100%", marginBottom: "16px", accentColor: "#3b82f6" }} />
@@ -327,6 +466,15 @@ export default function InductionSim() {
         style={{ ...iconBtnStyle(lightPanelOpen), top: "194px" }} title="Light Controls">
         <LightBulbIcon width={24} height={24} fill={lightPanelOpen ? "#000" : "#fff"} />
       </button>
+
+      {/* VECTOR TOGGLE (252px) */}
+      {activeTab === "faraday" && (
+        <button onClick={() => setShowVectors(!showVectors)}
+          className="ui-element"
+          style={{ ...iconBtnStyle(!showVectors), top: "252px" }} title="Toggle Vectors">
+          <VectorIcon width={24} height={24} fill={showVectors ? "#fff" : "#000"} />
+        </button>
+      )}
       
       {lightPanelOpen && (
         <div className="ui-element" style={{ position: "absolute", top: "194px", right: "82px", zIndex: 999,
@@ -366,7 +514,7 @@ export default function InductionSim() {
         <CheckerGround />
         
         {activeTab === "flux" && <ModeFlux bField={bField} area={area} angle={angle} />}
-        {activeTab === "faraday" && <ModeFaraday magnetX={magnetX} magnetStr={magnetStr} turns={turns} />}
+        {activeTab === "faraday" && <ModeFaraday magnetX={magnetX} magnetStr={magnetStr} turns={turns} autoSpeed={autoSpeed} magnetFlip={magnetFlip} showVectors={showVectors} />}
       </Canvas>
     </div>
   )

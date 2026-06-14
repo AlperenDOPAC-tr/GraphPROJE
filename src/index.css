@@ -45,3 +45,7 @@ input[type=range]:focus {
 body.hide-ui .left-panel {
   display: none !important;
 }
+
+body.hide-ui .ui-element {
+  display: none !important;
+}

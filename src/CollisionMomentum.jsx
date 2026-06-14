@@ -52,7 +52,7 @@ function SunLight({ lightAngle, intensity }) {
       shadow-camera-near={0.5}
       shadow-camera-far={200}
       shadow-mapSize={[2048, 2048]}
-      shadow-bias={-0.001}
+      shadow-bias={-0.0001}
     />
   )
 }
@@ -65,10 +65,16 @@ const WALL_THICKNESS = 0.5
 function Ground() {
   const texture = useMemo(() => getGroundTexture(15, 15), [])
   return (
-    <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]}>
-      <boxGeometry args={[ARENA_HALF * 2, ARENA_HALF * 2, 1]} />
-      <meshStandardMaterial color="#ffffff" map={texture} />
-    </mesh>
+    <group>
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.55, 0]}>
+        <boxGeometry args={[ARENA_HALF * 2, ARENA_HALF * 2, 1]} />
+        <meshStandardMaterial color="#ffffff" map={texture} />
+      </mesh>
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
+        <planeGeometry args={[ARENA_HALF * 2, ARENA_HALF * 2]} />
+        <shadowMaterial opacity={0.4} />
+      </mesh>
+    </group>
   )
 }
 
