@@ -189,39 +189,49 @@ function TransmissionLines({ x1, x2, vMid }) {
   )
 }
 
-// ─── LOAD (LIGHTBULB) ────────────────────────────────────────────────────────
-function Lightbulb({ position, voltage, nominalVoltage = 220 }) {
-  // Brightness based on voltage vs nominal
-  // If voltage is too high, it might blow up, but let's just make it super bright
-  const intensity = Math.max(0, Math.min(5, (voltage / nominalVoltage) * 2))
-  const color = intensity > 3 ? "#ffffff" : "#facc15"
+// ─── VOLTMETER ────────────────────────────────────────────────────────
+function Voltmeter({ position, voltage }) {
+  // Use monospace or a digital look for the value
+  const displayVal = voltage > 99999 ? "> 99k" : voltage.toFixed(1)
   
   return (
     <group position={position}>
-      {/* Base */}
-      <mesh position={[0, 0.5, 0]} castShadow>
-        <cylinderGeometry args={[0.4, 0.4, 1, 16]} />
-        <meshStandardMaterial color="#94a3b8" metalness={0.8} roughness={0.2} />
+      {/* Device Body */}
+      <mesh position={[0, 1.2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[3.2, 2.2, 1.2]} />
+        <meshStandardMaterial color="#334155" roughness={0.7} metalness={0.2} />
       </mesh>
-      {/* Glass Bulb */}
-      <mesh position={[0, 2.0, 0]} castShadow>
-        <sphereGeometry args={[1.2, 32, 32]} />
-        <meshStandardMaterial 
-          color={intensity > 0.1 ? color : "#fff"} 
-          emissive={color} 
-          emissiveIntensity={intensity} 
-          transparent opacity={intensity > 0.1 ? 0.9 : 0.4} 
-        />
-      </mesh>
-      {intensity > 0 && (
-        <pointLight position={[0, 2.0, 0]} intensity={intensity * 2} distance={20} color={color} />
-      )}
       
-      <Text position={[0, 4.0, 0]} fontSize={0.6} color="#fff" anchorX="center" outlineWidth={0.03} outlineColor="#000">
-        Load
+      {/* Screen Frame */}
+      <mesh position={[0, 1.4, 0.61]}>
+        <planeGeometry args={[2.6, 1.2]} />
+        <meshBasicMaterial color="#1e293b" />
+      </mesh>
+
+      {/* Screen Display */}
+      <mesh position={[0, 1.4, 0.62]}>
+        <planeGeometry args={[2.4, 1.0]} />
+        <meshBasicMaterial color="#0f172a" />
+      </mesh>
+
+      {/* Digital Text */}
+      <Text position={[0, 1.4, 0.63]} fontSize={0.6} color="#10b981" anchorX="center" anchorY="middle" outlineWidth={0.01} outlineColor="#047857">
+        {displayVal} V
       </Text>
-      <Text position={[0, -0.2, 1.2]} fontSize={0.5} color={intensity > 3 ? "#ef4444" : "#22c55e"} anchorX="center" outlineWidth={0.03} outlineColor="#000">
-        {Math.round(voltage)}V
+
+      {/* Connection Terminals */}
+      <mesh position={[-1.0, 0.5, 0.6]} rotation={[Math.PI/2, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.2, 16]} />
+        <meshStandardMaterial color="#ef4444" roughness={0.4} />
+      </mesh>
+      <mesh position={[1.0, 0.5, 0.6]} rotation={[Math.PI/2, 0, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.2, 16]} />
+        <meshStandardMaterial color="#000000" roughness={0.4} />
+      </mesh>
+      
+      {/* Device Label */}
+      <Text position={[0, 2.6, 0]} fontSize={0.6} color="#fff" anchorX="center" outlineWidth={0.03} outlineColor="#000">
+        VOLTMETER
       </Text>
     </group>
   )
@@ -415,7 +425,7 @@ export default function TransformerSim() {
           <meshStandardMaterial color="#1e293b" roughness={0.5} />
         </mesh>
 
-        <Lightbulb position={[loadX, 0, 0]} voltage={vOut} />
+        <Voltmeter position={[loadX, 0, 0]} voltage={vOut} />
       </Canvas>
     </div>
   )
