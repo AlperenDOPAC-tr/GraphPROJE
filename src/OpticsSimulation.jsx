@@ -74,7 +74,7 @@ function ArrowObject({ x, height, color, isVirtual }) {
         <cylinderGeometry args={[0.2, 0.2, shaftH, 16]} />
         <meshStandardMaterial color={color} transparent opacity={isVirtual ? 0.4 : 0.9} />
       </mesh>
-      <mesh position={[0, dir * (shaftH + headH / 2), 0]}>
+      <mesh position={[0, dir * (shaftH + headH / 2), 0]} rotation={[isUpright ? 0 : Math.PI, 0, 0]}>
         <coneGeometry args={[0.5, headH, 16]} />
         <meshStandardMaterial color={color} transparent opacity={isVirtual ? 0.4 : 0.9} />
       </mesh>

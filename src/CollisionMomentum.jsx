@@ -257,16 +257,50 @@ function Scene({
     pos2.current.x += vel2.current.x * dt
     pos2.current.z += vel2.current.z * dt
 
-    // Duvar çarpışması
+    // Duvar çarpışması (Çarpınca durma)
     const wallLimit = ARENA_HALF - CUBE_SIZE / 2 - WALL_THICKNESS
-    const bounceWall = (pos, vel) => {
-      if (pos.x > wallLimit) { pos.x = wallLimit; vel.x = -Math.abs(vel.x) }
-      if (pos.x < -wallLimit) { pos.x = -wallLimit; vel.x = Math.abs(vel.x) }
-      if (pos.z > wallLimit) { pos.z = wallLimit; vel.z = -Math.abs(vel.z) }
-      if (pos.z < -wallLimit) { pos.z = -wallLimit; vel.z = Math.abs(vel.z) }
+    const stopAtWall = (pos, vel) => {
+      if (pos.x >= wallLimit) { pos.x = wallLimit; vel.x = 0; vel.z = 0; }
+      if (pos.x <= -wallLimit) { pos.x = -wallLimit; vel.x = 0; vel.z = 0; }
+      if (pos.z >= wallLimit) { pos.z = wallLimit; vel.x = 0; vel.z = 0; }
+      if (pos.z <= -wallLimit) { pos.z = -wallLimit; vel.x = 0; vel.z = 0; }
     }
-    bounceWall(pos1.current, vel1.current)
-    bounceWall(pos2.current, vel2.current)
+    stopAtWall(pos1.current, vel1.current)
+    stopAtWall(pos2.current, vel2.current)
+
+    // Yapışık (inelastic) cisimler duvara çarptığında iç içe girmeyi önle
+    if (mergedRef.current) {
+      if ((vel1.current.x === 0 && vel1.current.z === 0) || (vel2.current.x === 0 && vel2.current.z === 0)) {
+        vel1.current.x = 0; vel1.current.z = 0;
+        vel2.current.x = 0; vel2.current.z = 0;
+      }
+      
+      const dx = pos2.current.x - pos1.current.x
+      const dz = pos2.current.z - pos1.current.z
+      const dist = Math.sqrt(dx * dx + dz * dz)
+      
+      if (dist < CUBE_SIZE && dist > 0.001) {
+        const overlap = CUBE_SIZE - dist
+        const nx = dx / dist
+        const nz = dz / dist
+        
+        const is1AtWall = Math.abs(pos1.current.x) >= wallLimit || Math.abs(pos1.current.z) >= wallLimit
+        const is2AtWall = Math.abs(pos2.current.x) >= wallLimit || Math.abs(pos2.current.z) >= wallLimit
+        
+        if (is1AtWall && !is2AtWall) {
+          pos2.current.x += nx * overlap
+          pos2.current.z += nz * overlap
+        } else if (is2AtWall && !is1AtWall) {
+          pos1.current.x -= nx * overlap
+          pos1.current.z -= nz * overlap
+        } else {
+          pos1.current.x -= nx * overlap / 2
+          pos1.current.z -= nz * overlap / 2
+          pos2.current.x += nx * overlap / 2
+          pos2.current.z += nz * overlap / 2
+        }
+      }
+    }
 
     // Çarpışma tespiti
     if (!collidedRef.current) {

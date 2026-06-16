@@ -14,6 +14,37 @@ import ClockScaler from './ClockScaler'
 const DT         = 1 / 60             // Rapier sabit fizik adımı (s)
 
 // ─── ZEMİN ─────────────────────────────────────────────────────────────────
+
+// ─── SCENARIOS ─────────────────────────────────────────────────────────────
+const SCENARIOS = {
+  '1cube': [
+    { id: 'c1', type: 'box', massKey: 'mass1', color: 'hotpink', name: 'CUBE', xOffset: 0 }
+  ],
+  '2cubes': [
+    { id: 'c1', type: 'box', massKey: 'mass1', color: 'hotpink', name: 'CUBE 1', xOffset: -4 },
+    { id: 'c2', type: 'box', massKey: 'mass2', color: 'orange', name: 'CUBE 2', xOffset: 4 }
+  ],
+  '1cube1sphere': [
+    { id: 'c1', type: 'box', massKey: 'mass1', color: 'hotpink', name: 'CUBE', xOffset: -4 },
+    { id: 's1', type: 'sphere', massKey: 'mass2', distKey: 'dist1', color: 'cyan', name: 'SPHERE', xOffset: 4 }
+  ],
+  '2spheres': [
+    { id: 's1', type: 'sphere', massKey: 'mass1', distKey: 'dist1', color: 'cyan', name: 'SPHERE 1', xOffset: -4 },
+    { id: 's2', type: 'sphere', massKey: 'mass2', distKey: 'dist2', color: '#22c55e', name: 'SPHERE 2', xOffset: 4 }
+  ],
+  '1sphere': [
+    { id: 's1', type: 'sphere', massKey: 'mass1', distKey: 'dist1', color: 'cyan', name: 'SPHERE', xOffset: 0 }
+  ]
+};
+
+const SCENARIO_NAMES = {
+  '1cube': '1 Cube',
+  '2cubes': '2 Cubes',
+  '1cube1sphere': '1 Cube + 1 Sphere',
+  '2spheres': '2 Spheres',
+  '1sphere': '1 Sphere'
+};
+
 function Ground({ friction }) {
   const texture = React.useMemo(() => getGroundTexture(15, 15), []);
 
@@ -63,6 +94,7 @@ function CompetitorVisual({ type, pos, color, name, angleRad, texture, distribut
     <mesh position={pos} rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]} castShadow>
       {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
       <meshStandardMaterial 
+        key={isHollowSphere ? "hollow" : "solid"}
         color={color} 
         emissive={color}
         emissiveIntensity={0.2}
@@ -117,6 +149,7 @@ function CompetitorPhysics({ type, pos, color, name, friction, distribution, mas
       <mesh castShadow>
         {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
         <meshStandardMaterial 
+          key={type === "sphere" && distribution === "hollow" ? "hollow" : "solid"}
           color={color} 
           emissive={color}
           emissiveIntensity={0.2}
@@ -219,26 +252,20 @@ function AngleIndicator({ side, angleRad }) {
 }
 
 // ─── CANVAS İÇİ SAHNE ──────────────────────────────────────────────────────
-function Scene({ friction, distribution, realWorldMode, mass1, mass2, hasStarted, isPlaying, onFinish, onTick, angleRad, textures, resetTrigger }) {
-  // Küp kaydığı için gerçek dünyada statik sürtünme yerine daha düşük olan kinetik sürtünmeye maruz kalır.
-  // Küre ise yuvarlandığı için kayma yapmaz ve statik tutunma (yüksek sürtünme) ile çalışır.
+
+function Scene({ friction, dist1, dist2, realWorldMode, mass1, mass2, hasStarted, isPlaying, onFinish, onTick, angleRad, textures, resetTrigger, scenarioKey }) {
+  const currentScenario = SCENARIOS[scenarioKey];
   const boxFriction = realWorldMode ? friction * 0.6 : friction;
 
   const length = 30;
   const h = length * Math.tan(angleRad);
   const startZ = -7.3;
-  // Surface height formula at Z. Wedge goes from Z=15 (y=0) to Z=-15 (y=h).
   const surfaceYAtStart = h * (15 - startZ) / 30;
-  
-  // Pos calculation: 1.0 is the radius (half-size), and we offset it perpendicular to the slope, plus a tiny 0.1 drop.
-  const startY = surfaceYAtStart + (1.0 / Math.cos(angleRad)) + 0.1;
+  // startY is exactly on the ramp, no +0.1 drop
+  const startY = surfaceYAtStart + (1.0 / Math.cos(angleRad));
 
-  const KUP_POS    = [-4, startY, startZ]
-  const KURE_POS   = [ 4, startY, startZ]
-
-  // Finish sensor at Z=14
   const surfaceYAtFinish = h * (15 - 14) / 30;
-  const finishY = surfaceYAtFinish + 4; // Sensor is 8 tall, centered
+  const finishY = surfaceYAtFinish + 4;
 
   return (
     <>
@@ -247,7 +274,6 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, hasStarted
         <AngleIndicator side="left" angleRad={angleRad} />
         <AngleIndicator side="right" angleRad={angleRad} />
 
-        {/* Görsel kırmızı bitiş çizgisi */}
         <mesh position={[0, surfaceYAtFinish + 0.05, 14]} rotation={[angleRad, 0, 0]}>
           <boxGeometry args={[20, 0.1, 0.5]} />
           <meshStandardMaterial color="red" />
@@ -255,26 +281,27 @@ function Scene({ friction, distribution, realWorldMode, mass1, mass2, hasStarted
 
         <PhysicsClock hasStarted={hasStarted} onTick={onTick} />
 
-        {!hasStarted ? (
-          /* BAŞLAT öncesi: saf görsel */
-          <>
-            <CompetitorVisual type="box"    pos={KUP_POS}  color="hotpink" name="CUBE" angleRad={angleRad} texture={textures?.cube} />
-            <CompetitorVisual type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" angleRad={angleRad} texture={textures?.sphere} distribution={distribution} />
-          </>
-        ) : (
-          /* Simülasyon aktif: Rapier fizik + sensörler */
-          <>
-            <CompetitorPhysics type="box"    pos={KUP_POS}  color="hotpink" name="CUBE"  friction={boxFriction} mass={mass1} angleRad={angleRad} texture={textures?.cube} />
-            <CompetitorPhysics type="sphere" pos={KURE_POS} color="cyan"    name="SPHERE" friction={friction} distribution={distribution} mass={mass2} angleRad={angleRad} texture={textures?.sphere} />
-            <FinishSensor position={[-4, finishY, 14]} onHit={() => onFinish("CUBE")} angleRad={angleRad} />
-            <FinishSensor position={[ 4, finishY, 14]} onHit={() => onFinish("SPHERE")} angleRad={angleRad} />
-          </>
-        )}
+        {currentScenario.map(obj => {
+          const pos = [obj.xOffset, startY, startZ];
+          const mass = obj.massKey === 'mass1' ? mass1 : mass2;
+          const objFriction = obj.type === 'box' ? boxFriction : friction;
+          const dist = obj.distKey === 'dist1' ? dist1 : dist2;
+
+          if (!hasStarted) {
+             return <CompetitorVisual key={obj.id} type={obj.type} pos={pos} color={obj.color} name={obj.name} angleRad={angleRad} texture={textures?.[obj.type]} distribution={dist} />
+          } else {
+             return (
+               <React.Fragment key={obj.id}>
+                 <CompetitorPhysics type={obj.type} pos={pos} color={obj.color} name={obj.name} friction={objFriction} distribution={dist} mass={mass} angleRad={angleRad} texture={textures?.[obj.type]} />
+                 <FinishSensor position={[obj.xOffset, finishY, 14]} onHit={() => onFinish(obj.id)} angleRad={angleRad} />
+               </React.Fragment>
+             )
+          }
+        })}
     </>
   )
 }
 
-// ─── ANA BİLEŞEN ───────────────────────────────────────────────────────────
 export default function InclinedPlane() {
   const [hasStarted, setHasStarted] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -283,15 +310,17 @@ export default function InclinedPlane() {
   const [timeScale, setTimeScale] = useState(1)
   const [rampAngleDeg, setRampAngleDeg] = useState(30)
   const [friction, setFriction] = useState(0.05)
-  const [distribution, setDistribution] = useState("full")
+  const [dist1, setDist1] = useState("full")
+  const [dist2, setDist2] = useState("hollow")
+  const [scenarioKey, setScenarioKey] = useState("1cube1sphere")
   const [realWorldMode, setRealWorldMode] = useState(true)
   const [mass1,    setMass1]    = useState(5)
   const [mass2,    setMass2]    = useState(5)
   const [lightAngle, setLightAngle] = useState(45)
   const [lightIntensity, setLightIntensity] = useState(1.5)
   const [lightPanelOpen, setLightPanelOpen] = useState(false)
-  const [times,    setTimes]    = useState({ t1: 0, t2: 0 })
-  const [finished, setFinished] = useState({ f1: false, f2: false })
+  const [times, setTimes] = useState({})
+  const [finished, setFinished] = useState({})
 
   // Dışarıdan resim indirmek yerine kod ile Texture üretiyoruz!
   const textures = React.useMemo(() => {
@@ -325,15 +354,18 @@ export default function InclinedPlane() {
   const lightRad = (lightAngle * Math.PI) / 180;
   const lightPos = [Math.cos(lightRad) * 30, 30, Math.sin(lightRad) * 30];
 
-  const r1Running = useRef(false)
-  const r2Running = useRef(false)
+  const runningFlags = useRef({})
 
   const handlePlayPause = () => {
     if (!hasStarted) {
-      setTimes({ t1: 0, t2: 0 })
-      setFinished({ f1: false, f2: false })
-      r1Running.current = true
-      r2Running.current = true
+      const initTimes = {}; const initFinished = {};
+      SCENARIOS[scenarioKey].forEach(obj => {
+        initTimes[obj.id] = 0;
+        initFinished[obj.id] = false;
+        runningFlags.current[obj.id] = true;
+      });
+      setTimes(initTimes)
+      setFinished(initFinished)
       setHasStarted(true)
       setIsPlaying(true)
       setResetTrigger(prev => prev + 1)
@@ -343,26 +375,31 @@ export default function InclinedPlane() {
   }
 
   const handleReset = () => {
-    r1Running.current = false
-    r2Running.current = false
+    runningFlags.current = {}
     setHasStarted(false)
     setIsPlaying(false)
-    setFinished({ f1: false, f2: false })
-    setTimes({ t1: 0, t2: 0 })
+    setFinished({})
+    setTimes({})
     setResetTrigger(prev => prev + 1)
   }
 
-  // PhysicsClock her frame bu fonksiyonu çağırır
   const handleTick = (elapsed) => {
-    setTimes(prev => ({
-      t1: r1Running.current ? elapsed : prev.t1,
-      t2: r2Running.current ? elapsed : prev.t2,
-    }))
+    setTimes(prev => {
+      let next = { ...prev };
+      let changed = false;
+      Object.keys(runningFlags.current).forEach(id => {
+        if (runningFlags.current[id]) {
+          next[id] = elapsed;
+          changed = true;
+        }
+      })
+      return changed ? next : prev;
+    })
   }
 
-  const handleFinish = (name) => {
-    if (name === "CUBE")  { r1Running.current = false; setFinished(p => ({ ...p, f1: true })) }
-    if (name === "SPHERE") { r2Running.current = false; setFinished(p => ({ ...p, f2: true })) }
+  const handleFinish = (id) => {
+    runningFlags.current[id] = false;
+    setFinished(p => ({ ...p, [id]: true }))
   }
 
   return (
@@ -372,6 +409,19 @@ export default function InclinedPlane() {
       <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif' }}>
         <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px', color: '#333' }}>
           <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>INCLINED PLANE</h3>
+
+          {/* SCENARIOS */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', background: '#f1f5f9', padding: '6px', borderRadius: '8px', marginBottom: '10px' }}>
+            {Object.keys(SCENARIOS).map(sc => (
+              <button key={sc} onClick={() => !hasStarted && setScenarioKey(sc)} style={{
+                flex: '1 1 30%', padding: '6px 4px', border: 'none', background: scenarioKey === sc ? '#2563eb' : '#e2e8f0',
+                color: scenarioKey === sc ? '#fff' : '#475569', fontWeight: 'bold', fontSize: '10px',
+                cursor: hasStarted ? 'not-allowed' : 'pointer', transition: '0.2s', borderRadius: '6px'
+              }}>
+                {SCENARIO_NAMES[sc]}
+              </button>
+            ))}
+          </div>
 
           <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
             <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginBottom: '4px' }}>
@@ -400,53 +450,33 @@ export default function InclinedPlane() {
             </div>
           </div>
 
-          {/* KÜP */}
-          <div style={{ background: finished.f1 ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: finished.f1 ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s', marginBottom: '15px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold' }}>CUBE: {mass1} kg</label>
-            </div>
-            <input type="range" min="1" max="100" value={mass1}
-              onChange={e => setMass1(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
-            <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>Only slides.</div>
-            <div style={{ fontSize: finished.f1 ? '18px' : '13px', fontWeight: 'bold', color: finished.f1 ? '#2e7d32' : '#333', transition: 'all 0.3s', marginTop: '8px' }}>
-              {times.t1.toFixed(3)} s
-            </div>
-          </div>
-
-          {/* KÜRE */}
-          <div style={{ background: finished.f2 ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: finished.f2 ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold' }}>SPHERE: {mass2} kg</label>
-            </div>
-            <input type="range" min="1" max="100" value={mass2}
-              onChange={e => setMass2(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
-            <select 
-              value={distribution} 
-              onChange={e => setDistribution(e.target.value)} 
-              disabled={hasStarted}
-              style={{ 
-                width: '100%', 
-                marginTop: '8px', 
-                padding: '6px 8px', 
-                fontSize: '11px',
-                fontWeight: 'bold',
-                borderRadius: '6px', 
-                border: '1px solid #ccc', 
-                background: '#fff', 
-                color: '#333',
-                cursor: hasStarted ? 'not-allowed' : 'pointer',
-                outline: 'none',
-                boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.05)'
-              }}
-            >
-              <option value="full">Solid Sphere</option>
-              <option value="hollow">Hollow Sphere</option>
-            </select>
-            <div style={{ fontSize: finished.f2 ? '18px' : '13px', fontWeight: 'bold', color: finished.f2 ? '#2e7d32' : '#333', transition: 'all 0.3s', marginTop: '8px' }}>
-              {times.t2.toFixed(3)} s
-            </div>
-          </div>
-
+          
+          {SCENARIOS[scenarioKey].map((obj, i) => {
+            const isFinished = finished[obj.id];
+            const massValue = obj.massKey === 'mass1' ? mass1 : mass2;
+            const setMass = obj.massKey === 'mass1' ? setMass1 : setMass2;
+            const distVal = obj.distKey === 'dist1' ? dist1 : dist2;
+            const setDist = obj.distKey === 'dist1' ? setDist1 : setDist2;
+            
+            return (
+              <div key={obj.id} style={{ background: isFinished ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: isFinished ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ fontSize: '11px', color: obj.color, fontWeight: 'bold' }}>{obj.name}: {massValue} kg</label>
+                </div>
+                <input type="range" min="1" max="100" value={massValue} onChange={e => setMass(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
+                {obj.type === 'box' && <div style={{ fontSize: '10px', color: '#666', marginTop: '2px' }}>Only slides.</div>}
+                {obj.type === 'sphere' && (
+                   <select value={distVal} onChange={e => setDist(e.target.value)} disabled={hasStarted} style={{ width: '100%', marginTop: '8px', padding: '6px 8px', fontSize: '11px', fontWeight: 'bold', borderRadius: '6px', border: '1px solid #ccc', background: '#fff', color: '#333', cursor: hasStarted ? 'not-allowed' : 'pointer', outline: 'none' }}>
+                     <option value="full">Solid Sphere</option>
+                     <option value="hollow">Hollow Sphere</option>
+                   </select>
+                )}
+                <div style={{ fontSize: isFinished ? '18px' : '13px', fontWeight: 'bold', color: isFinished ? '#2e7d32' : '#333', transition: 'all 0.3s', marginTop: '8px' }}>
+                  {(times[obj.id] || 0).toFixed(3)} s
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -623,7 +653,8 @@ export default function InclinedPlane() {
         >
           <Scene
             friction={friction}
-            distribution={distribution}
+            dist1={dist1}
+            dist2={dist2}
             realWorldMode={realWorldMode}
             mass1={mass1}
             mass2={mass2}
@@ -634,6 +665,7 @@ export default function InclinedPlane() {
             onTick={handleTick}
             angleRad={rampAngleDeg * Math.PI / 180}
             textures={textures}
+            scenarioKey={scenarioKey}
           />
           <PhysicsClock hasStarted={hasStarted} onTick={handleTick} />
         </Physics>

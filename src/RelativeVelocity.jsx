@@ -37,14 +37,14 @@ function SunLight({ lightAngle, intensity }) {
       position={[lightX, 60, lightZ]}
       intensity={intensity}
       castShadow
-      shadow-camera-left={-50}
-      shadow-camera-right={50}
-      shadow-camera-top={50}
-      shadow-camera-bottom={-50}
+      shadow-camera-left={-150}
+      shadow-camera-right={150}
+      shadow-camera-top={150}
+      shadow-camera-bottom={-150}
       shadow-camera-near={0.5}
       shadow-camera-far={200}
       shadow-mapSize={[2048, 2048]}
-      shadow-bias={-0.0001}
+      shadow-bias={-0.001}
     />
   )
 }
@@ -55,12 +55,44 @@ function Ground() {
   return (
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.55, 0]}>
-        <boxGeometry args={[100, 100, 1]} />
+        <boxGeometry args={[200, 200, 1]} />
         <meshStandardMaterial color="#ffffff" map={texture} />
       </mesh>
-      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]}>
-        <planeGeometry args={[100, 100]} />
+      <mesh receiveShadow rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+        <planeGeometry args={[200, 200]} />
         <shadowMaterial opacity={0.4} />
+      </mesh>
+    </group>
+  )
+}
+
+// ─── DUVARLAR ────────────────────────────────────────────────────────────────
+const ARENA_HALF = 100
+const WALL_HEIGHT = 4
+const WALL_THICKNESS = 1
+
+function Walls() {
+  const wallColor = '#555555'
+  const h = WALL_HEIGHT
+  const half = ARENA_HALF
+  const t = WALL_THICKNESS
+  return (
+    <group>
+      <mesh position={[0, h / 2, half]} castShadow receiveShadow>
+        <boxGeometry args={[half * 2 + t * 2, h, t]} />
+        <meshStandardMaterial color={wallColor} metalness={0.3} roughness={0.7} />
+      </mesh>
+      <mesh position={[0, h / 2, -half]} castShadow receiveShadow>
+        <boxGeometry args={[half * 2 + t * 2, h, t]} />
+        <meshStandardMaterial color={wallColor} metalness={0.3} roughness={0.7} />
+      </mesh>
+      <mesh position={[-half, h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[t, h, half * 2]} />
+        <meshStandardMaterial color={wallColor} metalness={0.3} roughness={0.7} />
+      </mesh>
+      <mesh position={[half, h / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[t, h, half * 2]} />
+        <meshStandardMaterial color={wallColor} metalness={0.3} roughness={0.7} />
       </mesh>
     </group>
   )
@@ -170,7 +202,7 @@ function Scene({
       rc.ray.intersectPlane(groundPlane, pt)
       if (!pt) return
 
-      const limit = 48
+      const limit = 98
       const x = Math.max(-limit, Math.min(limit, pt.x))
       const z = Math.max(-limit, Math.min(limit, pt.z))
 
@@ -204,8 +236,32 @@ function Scene({
   useFrame((state, delta) => {
     if (isPlaying) {
       const dt = Math.min(delta, 0.05) * timeScale;
-      currentPosA.current.addScaledVector(vecA, dt);
-      currentPosB.current.addScaledVector(vecB, dt);
+      
+      const wallLimit = 100 - 1 - 1; // ARENA_HALF - CUBE_HALF - WALL_THICKNESS
+      
+      const isPushingIntoWall = (pos, vec) => {
+        if (pos.x >= wallLimit && vec.x > 0) return true;
+        if (pos.x <= -wallLimit && vec.x < 0) return true;
+        if (pos.z >= wallLimit && vec.z > 0) return true;
+        if (pos.z <= -wallLimit && vec.z < 0) return true;
+        return false;
+      }
+      
+      const clampPos = (pos) => {
+        pos.x = Math.max(-wallLimit, Math.min(wallLimit, pos.x));
+        pos.z = Math.max(-wallLimit, Math.min(wallLimit, pos.z));
+      }
+
+      if (!isPushingIntoWall(currentPosA.current, vecA)) {
+        currentPosA.current.addScaledVector(vecA, dt);
+        clampPos(currentPosA.current);
+      }
+      
+      if (!isPushingIntoWall(currentPosB.current, vecB)) {
+        currentPosB.current.addScaledVector(vecB, dt);
+        clampPos(currentPosB.current);
+      }
+
       if (refA.current) refA.current.position.copy(currentPosA.current);
       if (refB.current) refB.current.position.copy(currentPosB.current);
     }
@@ -240,6 +296,7 @@ function Scene({
 
       {/* GROUND GRID */}
       <Ground />
+      <Walls />
 
       {/* OBJECT A (ORANGE) */}
       <group ref={refA}>

@@ -184,6 +184,23 @@ function OpticsScene({ L, lambda, d, w, n, mode, rotation, glassPos, glassThickn
   const screenDistance = L * 2 // Scale factor for visuals
   const screenWidth = 4.0
 
+  const wedgeGeo = useMemo(() => {
+    const geo = new THREE.BoxGeometry(1, 1, 1)
+    const pos = geo.attributes.position
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i)
+      const y = pos.getY(i)
+      const z = pos.getZ(i)
+      const isScreen = z > 0
+      const actualZ = isScreen ? screenDistance - 0.01 : 0.027 // stop just before screen to prevent z-fighting
+      const actualX = x > 0 ? (isScreen ? screenWidth / 2 : 0.01) : (isScreen ? -screenWidth / 2 : -0.01)
+      const actualY = y > 0 ? (isScreen ? screenWidth / 2 : 0.25) : (isScreen ? -screenWidth / 2 : -0.25) // expands to screenWidth
+      pos.setXYZ(i, actualX, actualY, actualZ)
+    }
+    geo.computeVertexNormals()
+    return geo
+  }, [screenDistance])
+
   return (
     <>
       <group position={[0, 1, -screenDistance / 2]}>
@@ -221,11 +238,24 @@ function OpticsScene({ L, lambda, d, w, n, mode, rotation, glassPos, glassThickn
         </mesh>
       </group>
 
-      {/* ── DIFFRACTED BEAM (Cone visualization) ── */}
-      <mesh position={[0, 0, screenDistance / 2]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[screenWidth / 2, 0.05, screenDistance, 32, 1, true]} />
-        <meshStandardMaterial color={color} transparent opacity={0.05} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
-      </mesh>
+      {/* ── DIFFRACTED BEAM (Wedge visualization) ── */}
+      {mode === "single" ? (
+        <mesh position={[0, 0, 0]} rotation={[0, (rotation * Math.PI) / 180, 0]}>
+          <primitive object={wedgeGeo} attach="geometry" />
+          <meshStandardMaterial color={color} transparent opacity={0.06} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+        </mesh>
+      ) : (
+        <group rotation={[0, (rotation * Math.PI) / 180, 0]}>
+          <mesh position={[-0.1, 0, 0]}>
+            <primitive object={wedgeGeo} attach="geometry" />
+            <meshStandardMaterial color={color} transparent opacity={0.04} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+          </mesh>
+          <mesh position={[0.1, 0, 0]}>
+            <primitive object={wedgeGeo} attach="geometry" />
+            <meshStandardMaterial color={color} transparent opacity={0.04} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+          </mesh>
+        </group>
+      )}
 
       {/* ── SCREEN ── */}
       <mesh position={[0, 0, screenDistance]} castShadow receiveShadow>
@@ -288,6 +318,18 @@ export default function OpticsInterference() {
       <div className="left-panel" style={panelStyle}>
         <h2 style={titleStyle}>Double & Single Slit</h2>
 
+        <div style={{
+          background: '#fff', borderRadius: '8px', border: '1px solid #e5e7eb', padding: '12px',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)', marginBottom: '4px'
+        }}>
+          <div style={{ color: '#666', fontSize: '11px', fontWeight: 'bold' }}>FRINGE WIDTH (Δx)</div>
+          <div style={{ color: '#000', fontSize: '24px', fontWeight: '900' }}>{dx_mm} <span style={{fontSize:'14px', color: '#666'}}>mm</span></div>
+          <div style={{ width: '100%', height: '6px', background: '#e5e7eb', borderRadius: '3px', overflow: 'hidden', marginTop: '4px' }}>
+            <div style={{ width: `${Math.min(100, (dx_mm / 50) * 100)}%`, height: '100%', background: mode === "single" ? '#00e5ff' : '#b000ff', transition: 'width 0.3s' }} />
+          </div>
+        </div>
+
         <div style={mode === "single" ? singleCardStyle : cardStyle}>
           <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
             <button onClick={() => setMode("single")} style={{ flex: 1, padding: '8px', borderRadius: '6px', border: 'none', background: mode === "single" ? '#00e5ff' : '#e0e0e0', color: mode === "single" ? '#000' : '#666', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', fontSize: '11px' }}>SINGLE</button>
@@ -332,21 +374,6 @@ export default function OpticsInterference() {
           <input type="range" min={0.001} max={0.05} step={0.001} value={glassThickness} onChange={e => setGlassThickness(+e.target.value)} style={{ width: '100%' }} />
         </div>
 
-      </div>
-
-      {/* ── FRINGE WIDTH BAR (dx) ── */}
-      <div style={{
-        position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)',
-        background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)',
-        padding: '12px 24px', borderRadius: '12px', border: '1px solid #eee',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', zIndex: 10,
-        boxShadow: '0 4px 15px rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ color: '#666', fontSize: '11px', fontWeight: 'bold' }}>FRINGE WIDTH (Δx)</div>
-        <div style={{ color: '#000', fontSize: '24px', fontWeight: '900' }}>{dx_mm} <span style={{fontSize:'14px', color: '#666'}}>mm</span></div>
-        <div style={{ width: '200px', height: '6px', background: '#ddd', borderRadius: '3px', overflow: 'hidden', marginTop: '4px' }}>
-          <div style={{ width: `${Math.min(100, (dx_mm / 50) * 100)}%`, height: '100%', background: mode === "single" ? '#00e5ff' : '#b000ff', transition: 'width 0.3s' }} />
-        </div>
       </div>
 
       <Canvas shadows camera={{ position: [2, 2, 6], fov: 45 }}>

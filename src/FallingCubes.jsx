@@ -11,7 +11,7 @@ import SpotLightFixture from "./SpotLightFixture"
 const Controls = ({ 
   mass1, setMass1, mass2, setMass2, 
   height1, setHeight1, height2, setHeight2,
-  airRes, setAirRes, 
+  fluidDensity, setFluidDensity, scenario, setScenario, 
   gravity, setGravity,
   lightInt, setLightInt, 
   lightDir, setLightDir,
@@ -20,13 +20,31 @@ const Controls = ({
   speedPanelOpen, setSpeedPanelOpen,
   timeScale, setTimeScale
 }) => {
-  const finished = hasStarted && !running.r1 && !running.r2;
+  const finished = hasStarted && !running.r1 && (scenario === "1cube" || !running.r2);
   return (
   <>
   <div className="left-panel" style={{ position: 'absolute', top: '20px', left: '20px', zIndex: 10, fontFamily: 'sans-serif', color: '#333' }}>
     <div style={{ background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(6px)', padding: '20px', borderRadius: '12px', boxShadow: '0 8px 30px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column', gap: '12px', border: '1px solid #eee', width: '285px' }}>
       <h3 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#000', textAlign: 'center' }}>FREE FALL</h3>
       
+      {/* SCENARIOS */}
+      <div style={{ display: 'flex', gap: '4px', background: '#f1f5f9', padding: '6px', borderRadius: '8px', marginBottom: '8px' }}>
+        <button onClick={() => !hasStarted && setScenario('1cube')} style={{
+          flex: 1, padding: '6px 4px', border: 'none', background: scenario === '1cube' ? '#2563eb' : '#e2e8f0',
+          color: scenario === '1cube' ? '#fff' : '#475569', fontWeight: 'bold', fontSize: '11px',
+          cursor: hasStarted ? 'not-allowed' : 'pointer', transition: '0.2s', borderRadius: '6px'
+        }}>
+          1 Cube
+        </button>
+        <button onClick={() => !hasStarted && setScenario('2cubes')} style={{
+          flex: 1, padding: '6px 4px', border: 'none', background: scenario === '2cubes' ? '#2563eb' : '#e2e8f0',
+          color: scenario === '2cubes' ? '#fff' : '#475569', fontWeight: 'bold', fontSize: '11px',
+          cursor: hasStarted ? 'not-allowed' : 'pointer', transition: '0.2s', borderRadius: '6px'
+        }}>
+          2 Cubes
+        </button>
+      </div>
+
       {/* 1. KÜP */}
       <div style={{ background: (hasStarted && !running.r1) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (hasStarted && !running.r1) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
         <label style={{ fontSize: '11px', color: '#d81b60', fontWeight: 'bold', display: 'block' }}>1. CUBE (PINK)</label>
@@ -42,6 +60,7 @@ const Controls = ({
       </div>
 
       {/* 2. KÜP */}
+      {scenario === '2cubes' && (
       <div style={{ background: (hasStarted && !running.r2) ? '#e8f5e9' : '#f9f9f9', padding: '10px', borderRadius: '8px', border: (hasStarted && !running.r2) ? '2px solid #4caf50' : '2px solid transparent', transition: 'all 0.3s' }}>
         <label style={{ fontSize: '11px', color: '#00acc1', fontWeight: 'bold', display: 'block' }}>2. CUBE (BLUE)</label>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px' }}><span>Mass: {mass2} kg</span></div>
@@ -54,6 +73,7 @@ const Controls = ({
           Time: {times.t2.toFixed(3)} s
         </div>
       </div>
+      )}
 
       {/* SÜRTÜNME VE YERÇEKİMİ */}
       <div style={{ background: '#f9f9f9', padding: '10px', borderRadius: '8px' }}>
@@ -66,8 +86,17 @@ const Controls = ({
           </div>
         </div>
 
-        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>AIR RESISTANCE: {airRes}%</label>
-        <input type="range" min="0" max="100" step="1" value={airRes} onChange={(e) => setAirRes(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%', margin: '8px 0' }} />
+        <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', marginTop: '10px' }}>FLUID DENSITY (ρ): {fluidDensity.toFixed(3)} kg/m³</label>
+        <div style={{ position: 'relative', margin: '8px 0 16px 0', paddingBottom: '15px' }}>
+          <input type="range" min="0" max="5" step="0.005" value={fluidDensity} onChange={(e) => setFluidDensity(Number(e.target.value))} disabled={hasStarted} style={{ width: '100%' }} />
+          <div style={{ position: 'absolute', top: '20px', left: `${(1.225 / 5) * 100}%`, transform: 'translateX(-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div style={{ width: '2px', height: '4px', background: '#000000' }}></div>
+            <span style={{ fontSize: '9px', color: '#000000', fontWeight: 'bold' }}>Air (1.22)</span>
+          </div>
+          <div style={{ position: 'absolute', top: '20px', left: `0%`, transform: 'translateX(0%)', display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span style={{ fontSize: '9px', color: '#666', fontWeight: 'bold', marginTop: '4px' }}>Vacuum</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -274,10 +303,10 @@ function FallingCubeStatic({ position, mass, texture, size }) {
   )
 }
 
-function FallingCubePhysics({ position, color, mass, airRes, onHit }) {
+function FallingCubePhysics({ position, color, mass, fluidDensity, onHit }) {
   const hasHit = useRef(false)
   const size = [2, 2, 2];
-  const rawDamping = (airRes / 50) * (1 - (mass / 101)) * 0.85;
+  const rawDamping = (fluidDensity * 2.0) / mass;
   const dampingValue = Math.max(0, Math.min(rawDamping, 0.99));
   const texture = React.useMemo(() => getCubeTexture(color), [color]);
 
@@ -308,14 +337,14 @@ function FallingCubePhysics({ position, color, mass, airRes, onHit }) {
   )
 }
 
-function FallingCube({ position, color, mass, started, airRes, onHit }) {
+function FallingCube({ position, color, mass, started, fluidDensity, onHit }) {
   const size = [2, 2, 2];
   const texture = React.useMemo(() => getCubeTexture(color), [color]);
 
   if (!started) {
     return <FallingCubeStatic position={position} mass={mass} texture={texture} size={size} />
   }
-  return <FallingCubePhysics position={position} color={color} mass={mass} airRes={airRes} onHit={onHit} />
+  return <FallingCubePhysics position={position} color={color} mass={mass} fluidDensity={fluidDensity} onHit={onHit} />
 }
 
 export default function App() {
@@ -323,7 +352,8 @@ export default function App() {
   const [mass2, setMass2] = useState(50)
   const [height1, setHeight1] = useState(25)
   const [height2, setHeight2] = useState(25)
-  const [airRes, setAirRes] = useState(50)
+  const [fluidDensity, setFluidDensity] = useState(1.225)
+  const [scenario, setScenario] = useState("2cubes")
   const [gravity, setGravity] = useState(9.81)
   const [lightInt, setLightInt] = useState(2.5)
   const [lightDir, setLightDir] = useState(45)
@@ -343,7 +373,7 @@ export default function App() {
       startTimeRef.current = Date.now()
       setHasStarted(true)
       setIsPlaying(true)
-      setRunning({ r1: true, r2: true })
+      setRunning({ r1: true, r2: scenario === "2cubes" })
       setTimes({ t1: 0, t2: 0 })
     } else {
       setIsPlaying(!isPlaying)
@@ -387,7 +417,7 @@ export default function App() {
       <Controls 
         mass1={mass1} setMass1={setMass1} mass2={mass2} setMass2={setMass2} 
         height1={height1} setHeight1={setHeight1} height2={height2} setHeight2={setHeight2}
-        airRes={airRes} setAirRes={setAirRes}
+        fluidDensity={fluidDensity} setFluidDensity={setFluidDensity} scenario={scenario} setScenario={setScenario}
         gravity={gravity} setGravity={setGravity}
         lightInt={lightInt} setLightInt={setLightInt}
         lightDir={lightDir} setLightDir={setLightDir}
@@ -423,8 +453,8 @@ export default function App() {
           <Ground />
           <HeightChart maxHeight={50} />
           {/* Küpler arası mesafe boyut büyüdüğü için biraz açıldı */}
-          <FallingCube position={[-5, height1, 0]} color="#d81b60" mass={mass1} started={hasStarted} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r1: false }))} />
-          <FallingCube position={[5, height2, 0]} color="#00acc1" mass={mass2} started={hasStarted} airRes={airRes} onHit={() => setRunning(p => ({ ...p, r2: false }))} />
+          <FallingCube position={[scenario === "1cube" ? 0 : -5, height1, 0]} color="#d81b60" mass={mass1} started={hasStarted} fluidDensity={fluidDensity} onHit={() => setRunning(p => ({ ...p, r1: false }))} />
+          {scenario === "2cubes" && <FallingCube position={[5, height2, 0]} color="#00acc1" mass={mass2} started={hasStarted} fluidDensity={fluidDensity} onHit={() => setRunning(p => ({ ...p, r2: false }))} />}
         </Physics>
       </Canvas>
     </div>

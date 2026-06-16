@@ -34,7 +34,7 @@ const simulations = [
   { id: "angular", name: "Angular Momentum", image: "/images/angular.png" },
   { id: "lightcolors", name: "Light Color Mixing", image: "/images/lightcolors.jpg" },
   { id: "waterwaves", name: "Water Waves", image: "/images/waters.jpg" },
-  { id: "pressure", name: "Solid Pressure", image: "/images/pressure.png" },
+  { id: "pressure", name: "Pressure", image: "/images/pressure.png" },
   { id: "buoyancy", name: "Buoyancy", image: "/images/buoyancy.png" },
   { id: "capacitor", name: "Capacitor", image: "/images/capacitor.jpg" },
   { id: "transformer", name: "Transformers", image: "/images/transformer.jpg" },
