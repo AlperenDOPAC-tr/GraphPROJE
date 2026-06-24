@@ -467,6 +467,8 @@ export default function MagneticFieldSim() {
       
       <div className="left-panel" style={panelStyle}>
         
+        <h2 style={{ fontSize: "18px", margin: "0 0 20px 0", color: "#1e293b", fontWeight: "800", textAlign: "center" }}>MAGNETIC FIELD</h2>
+
         {/* TABS */}
         <div style={{ display: "flex", gap: "4px", background: "#e2e8f0", padding: "4px", borderRadius: "10px", marginBottom: "20px" }}>
           <div style={tabStyle(activeTab === "oersted")} onClick={() => setActiveTab("oersted")}>OERSTED</div>

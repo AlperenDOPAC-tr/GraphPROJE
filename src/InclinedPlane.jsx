@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react'
-import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon, VectorIcon } from './Icons'
 import * as THREE from "three"
 import { Canvas, useFrame } from "@react-three/fiber"
 import {
@@ -88,89 +88,101 @@ function Ramp({ friction, angleRad, texture }) {
 }
 
 // ─── GÖRSEL CİSİM (BAŞLAT öncesi, fizik yok) ───────────────────────────────
-function CompetitorVisual({ type, pos, color, name, angleRad, texture, distribution }) {
-  const isHollowSphere = type === "sphere" && distribution === "hollow";
+function CompetitorVisual({ type, pos, color, angleRad, texture, distribution, mass }) {
+  const isHollowSphere = type === 'sphere' && distribution === 'hollow'
+  // Kütleye göre boyut ayarlaması
+  const size = Math.cbrt(mass) * 0.6
+
   return (
-    <mesh position={pos} rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]} castShadow>
-      {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-      <meshStandardMaterial 
-        key={isHollowSphere ? "hollow" : "solid"}
-        color={color} 
-        emissive={color}
-        emissiveIntensity={0.2}
-        roughness={0.15} 
-        metalness={0.6}
-        transparent={isHollowSphere}
-        opacity={isHollowSphere ? 0.3 : 1}
-      />
-      <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
-      <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
-            fontWeight="bold" outlineWidth={0.05} outlineColor="black">
-        {name}
-      </Text>
-    </mesh>
+    <group position={pos}>
+      <mesh rotation={type === 'box' ? [angleRad, 0, 0] : [0, 0, 0]} castShadow>
+        {type === 'box' ? <boxGeometry args={[size * 2, size * 2, size * 2]} /> : <sphereGeometry args={[size, 32, 32]} />}
+        <meshStandardMaterial
+          key={isHollowSphere ? 'hollow' : 'solid'}
+          color={color} emissive={color} emissiveIntensity={0.2}
+          map={texture}
+          roughness={0.15} metalness={0.6}
+          transparent={isHollowSphere} opacity={isHollowSphere ? 0.3 : 1}
+        />
+        <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
+      </mesh>
+    </group>
   )
 }
 
 // ─── FİZİKSEL CİSİM (BAŞLAT sonrası, Rapier) ───────────────────────────────
-function CompetitorPhysics({ type, pos, color, name, friction, distribution, mass, angleRad, texture }) {
-  let massProps = undefined;
+function CompetitorPhysics({ type, pos, color, friction, distribution, mass, angleRad, texture }) {
+  const bodyRef   = useRef(null)
 
-  if (type === "sphere") {
-    // radius = 1
-    const I_full = (2 / 5) * mass * 1 * 1; // 2.0
-    const I_hollow = (2 / 3) * mass * 1 * 1; // 3.333...
-    const I = distribution === "hollow" ? I_hollow : I_full;
-    
+  // Statik→Kinetik sürtünme: μs = 1.5 * μk, nesne hareket başlayana kadar durdurulur
+  const muK        = friction
+  const muS        = friction * 1.5
+  const isStaticRef = useRef(true)   // başlangıçta statik fazda
+
+  // Kütleye göre boyut ayarlaması
+  const size = Math.cbrt(mass) * 0.6
+
+  // ── Statik→Kinetik Sürtünme Fiziği ──────────────────────────────────────
+  useBeforePhysicsStep(() => {
+    if (!bodyRef.current) return
+    if (!isStaticRef.current) return
+
+    const W = mass * 9.81
+    const N = W * Math.cos(angleRad)
+    const gravAlongSlope = W * Math.sin(angleRad)   // ağırlığın rampa boyunca bileşeni
+    const staticFrictionMax = muS * N
+
+    if (gravAlongSlope <= staticFrictionMax) {
+      // Nesneyi durdur: statik sürtünme tutuyor
+      bodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      bodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    } else {
+      // Eşik aşıldı: kinetik faza geç
+      isStaticRef.current = false
+    }
+  })
+
+  let massProps = undefined
+  if (type === 'sphere') {
+    // Eylemsizlik momenti (Moment of Inertia) I = k * M * R^2
+    const I_full   = (2/5) * mass * (size * size)
+    const I_hollow = (2/3) * mass * (size * size)
+    const I = distribution === 'hollow' ? I_hollow : I_full
     massProps = {
-      mass: mass,
-      centerOfMass: { x: 0, y: 0, z: 0 },
-      principalAngularInertia: { x: I, y: I, z: I },
-      angularInertiaLocalFrame: { w: 1, x: 0, y: 0, z: 0 }
-    };
-  } else {
-    // For box, calculate standard inertia or just let Rapier handle it via mass prop
-    // Actually, if we just supply mass={mass} it works, but since we can't mix mass and massProperties,
-    // we'll conditionally pass mass or massProperties to RigidBody.
+      mass,
+      centerOfMass: { x:0, y:0, z:0 },
+      principalAngularInertia: { x:I, y:I, z:I },
+      angularInertiaLocalFrame: { w:1, x:0, y:0, z:0 }
+    }
   }
 
   return (
-    <RigidBody
-      type="dynamic"
-      colliders={false}
-      mass={type === "box" ? mass : undefined}
-      massProperties={type === "sphere" ? massProps : undefined}
-      restitution={0}
-      linearDamping={0}
-      angularDamping={0}
-      position={pos}
-      rotation={type === "box" ? [angleRad, 0, 0] : [0, 0, 0]}
+    <RigidBody ref={bodyRef}
+      type="dynamic" colliders={false}
+      mass={type === 'box' ? mass : undefined}
+      massProperties={type === 'sphere' ? massProps : undefined}
+      restitution={0} linearDamping={0} angularDamping={0}
+      position={pos} rotation={type === 'box' ? [angleRad, 0, 0] : [0, 0, 0]}
     >
       <mesh castShadow>
-        {type === "box" ? <boxGeometry args={[2, 2, 2]} /> : <sphereGeometry args={[1, 32, 32]} />}
-        <meshStandardMaterial 
-          key={type === "sphere" && distribution === "hollow" ? "hollow" : "solid"}
-          color={color} 
-          emissive={color}
-          emissiveIntensity={0.2}
-          roughness={0.15} 
-          metalness={0.6}
-          transparent={type === "sphere" && distribution === "hollow"}
-          opacity={type === "sphere" && distribution === "hollow" ? 0.3 : 1}
+        {type === 'box' ? <boxGeometry args={[size * 2, size * 2, size * 2]} /> : <sphereGeometry args={[size, 32, 32]} />}
+        <meshStandardMaterial
+          key={type === 'sphere' && distribution === 'hollow' ? 'hollow' : 'solid'}
+          color={color} emissive={color} emissiveIntensity={0.2}
+          map={texture}
+          roughness={0.15} metalness={0.6}
+          transparent={type === 'sphere' && distribution === 'hollow'}
+          opacity={type === 'sphere' && distribution === 'hollow' ? 0.3 : 1}
         />
         <Edges scale={1.02} threshold={15} color="black" opacity={0.8} transparent />
-        <Text position={[0, 0, 1.2]} fontSize={0.5} color="white"
-              fontWeight="bold" outlineWidth={0.05} outlineColor="black">
-          {name}
-        </Text>
       </mesh>
-      {/* Collider'a sürtünme → fizik temas hesabı doğru */}
-      {type === "box"
-        ? <CuboidCollider args={[1, 1, 1]} friction={friction} restitution={0} />
-        : <BallCollider   args={[1]}       friction={friction} restitution={0} />}
+      {type === 'box'
+        ? <CuboidCollider args={[size, size, size]} friction={muK} restitution={0} />
+        : <BallCollider   args={[size]}     friction={muK} restitution={0} />}
     </RigidBody>
   )
 }
+
 
 // ─── BİTİŞ SENSÖRÜ (görünmez, geçişli) ────────────────────────────────────
 function FinishSensor({ position, onHit, angleRad }) {
@@ -261,8 +273,6 @@ function Scene({ friction, dist1, dist2, realWorldMode, mass1, mass2, hasStarted
   const h = length * Math.tan(angleRad);
   const startZ = -7.3;
   const surfaceYAtStart = h * (15 - startZ) / 30;
-  // startY is exactly on the ramp, no +0.1 drop
-  const startY = surfaceYAtStart + (1.0 / Math.cos(angleRad));
 
   const surfaceYAtFinish = h * (15 - 14) / 30;
   const finishY = surfaceYAtFinish + 4;
@@ -282,20 +292,26 @@ function Scene({ friction, dist1, dist2, realWorldMode, mass1, mass2, hasStarted
         <PhysicsClock hasStarted={hasStarted} onTick={onTick} />
 
         {currentScenario.map(obj => {
-          const pos = [obj.xOffset, startY, startZ];
           const mass = obj.massKey === 'mass1' ? mass1 : mass2;
+          const size = Math.cbrt(mass) * 0.6;
+          // Objelerin ön yüzlerini (z yönünde en ilerideki noktalarını) aynı hizaya getirmek için
+          // merkezlerini geriye ve yukarıya kaydırıyoruz.
+          const objStartZ = startZ - size * Math.cos(angleRad) + size * Math.sin(angleRad);
+          const objStartY = surfaceYAtStart + size * Math.sin(angleRad) + size * Math.cos(angleRad);
+          const pos = [obj.xOffset, objStartY, objStartZ];
+          
           const objFriction = obj.type === 'box' ? boxFriction : friction;
           const dist = obj.distKey === 'dist1' ? dist1 : dist2;
 
-          if (!hasStarted) {
-             return <CompetitorVisual key={obj.id} type={obj.type} pos={pos} color={obj.color} name={obj.name} angleRad={angleRad} texture={textures?.[obj.type]} distribution={dist} />
-          } else {
-             return (
+          if (hasStarted) {
+            return (
                <React.Fragment key={obj.id}>
-                 <CompetitorPhysics type={obj.type} pos={pos} color={obj.color} name={obj.name} friction={objFriction} distribution={dist} mass={mass} angleRad={angleRad} texture={textures?.[obj.type]} />
+                 <CompetitorPhysics type={obj.type} pos={pos} color={obj.color} friction={objFriction} distribution={dist} mass={mass} angleRad={angleRad} texture={textures?.[obj.type]} />
                  <FinishSensor position={[obj.xOffset, finishY, 14]} onHit={() => onFinish(obj.id)} angleRad={angleRad} />
                </React.Fragment>
              )
+          } else {
+             return <CompetitorVisual key={obj.id} type={obj.type} pos={pos} color={obj.color} angleRad={angleRad} texture={textures?.[obj.type]} distribution={dist} mass={mass} />
           }
         })}
     </>
@@ -578,6 +594,7 @@ export default function InclinedPlane() {
           <input type="range" min="0.1" max="1" step="0.1" value={timeScale} onChange={e => setTimeScale(Number(e.target.value))} style={{ width: '100%' }} />
         </div>
       )}
+
 
       {/* Işık Kontrol Butonu */}
       <button

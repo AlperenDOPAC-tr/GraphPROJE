@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react"
-import { Canvas, useFrame } from "@react-three/fiber"
+import { Canvas, useFrame, useThree } from "@react-three/fiber"
 import { OrbitControls, Text, Line, Cylinder, Box, Sphere } from "@react-three/drei"
 import * as THREE from "three"
 import { LightBulbIcon, EyeIcon, PlayIcon, PauseIcon, ResetIcon, VectorIcon } from "./Icons"
@@ -124,11 +124,48 @@ function BFieldParticles({ count }) {
 }
 
 // ─── MOD 2: FARADAY (MAGNET & COIL) ───
-function ModeFaraday({ magnetX, magnetStr, turns, autoSpeed, magnetFlip, showVectors }) {
+function ModeFaraday({ magnetX, setMagnetX, setAutoSpeed, controlsRef, magnetStr, turns, autoSpeed, magnetFlip, showVectors }) {
+  const { gl, camera } = useThree()
   const currentPos = useRef(magnetX)
   const prevPos = useRef(magnetX)
   const dir = useRef(1)
   const smoothedV = useRef(0)
+  const draggingRef = useRef(false)
+  const plane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), [])
+  
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!draggingRef.current) return
+      const rect = gl.domElement.getBoundingClientRect()
+      const mouse = new THREE.Vector2(
+        ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        -((e.clientY - rect.top) / rect.height) * 2 + 1
+      )
+      const rc = new THREE.Raycaster()
+      rc.setFromCamera(mouse, camera)
+      const pt = new THREE.Vector3()
+      rc.ray.intersectPlane(plane, pt)
+      if (pt) {
+        let x = Math.max(-15, Math.min(15, pt.x))
+        setMagnetX(x)
+      }
+    }
+    const onUp = () => {
+      if (draggingRef.current) {
+        draggingRef.current = false
+        gl.domElement.style.cursor = 'default'
+        if (controlsRef && controlsRef.current) controlsRef.current.enabled = true
+      }
+    }
+    gl.domElement.addEventListener('pointermove', onMove)
+    gl.domElement.addEventListener('pointerup', onUp)
+    gl.domElement.addEventListener('pointerleave', onUp)
+    return () => {
+      gl.domElement.removeEventListener('pointermove', onMove)
+      gl.domElement.removeEventListener('pointerup', onUp)
+      gl.domElement.removeEventListener('pointerleave', onUp)
+    }
+  }, [gl, camera, setMagnetX, plane, controlsRef])
   
   const magnetGroupRef = useRef()
   const bulbMeshRef = useRef()
@@ -254,7 +291,21 @@ function ModeFaraday({ magnetX, magnetStr, turns, autoSpeed, magnetFlip, showVec
   return (
     <group>
       {/* Magnet */}
-      <group ref={magnetGroupRef} position={[magnetX, 6.5, 0]}>
+      <group ref={magnetGroupRef} position={[magnetX, 6.5, 0]}
+        onPointerDown={(e) => {
+          e.stopPropagation()
+          draggingRef.current = true
+          setAutoSpeed(0)
+          gl.domElement.style.cursor = 'grabbing'
+          if (controlsRef && controlsRef.current) controlsRef.current.enabled = false
+        }}
+        onPointerEnter={(e) => {
+          if (!draggingRef.current) gl.domElement.style.cursor = 'grab'
+        }}
+        onPointerLeave={(e) => {
+          if (!draggingRef.current) gl.domElement.style.cursor = 'default'
+        }}
+      >
         <mesh position={[-2, 0, 0]} castShadow>
           <boxGeometry args={[4, 2, 2]} />
           <meshStandardMaterial color={magnetFlip === 1 ? "#ef4444" : "#3b82f6"} roughness={0.4} metalness={0.5} />
@@ -323,6 +374,7 @@ function ModeFaraday({ magnetX, magnetStr, turns, autoSpeed, magnetFlip, showVec
 // REMOVED OERSTED COMPONENTS
 
 export default function InductionSim() {
+  const controlsRef = useRef()
   const [activeTab, setActiveTab] = useState("flux")
 
   // Flux state
@@ -385,6 +437,8 @@ export default function InductionSim() {
       {/* LEFT PANEL */}
       <div className="left-panel" style={panelStyle}>
         
+        <h2 style={{ fontSize: "18px", margin: "0 0 20px 0", color: "#1e293b", fontWeight: "800", textAlign: "center" }}>ELECTROMAGNETIC INDUCTION</h2>
+
         {/* TABS */}
         <div style={{ display: "flex", gap: "4px", background: "#e2e8f0", padding: "4px", borderRadius: "10px", marginBottom: "20px" }}>
           <div style={tabStyle(activeTab === "flux")} onClick={() => setActiveTab("flux")}>FLUX</div>
@@ -509,12 +563,12 @@ export default function InductionSim() {
         <pointLight position={[0, 15, 0]} intensity={1.5} color="#cbd5e1" />
         <SpotLightFixture lightPos={[lx, ly, lz]} intensity={lightInt * 1.5} target={[0, 0, 0]} color="#fffbe6" height={2} radius={0.8} />
         
-        <OrbitControls makeDefault enablePan target={[0, 5, 0]} maxPolarAngle={Math.PI/2 - 0.05} />
+        <OrbitControls ref={controlsRef} makeDefault enablePan target={[0, 5, 0]} maxPolarAngle={Math.PI/2 - 0.05} />
         
         <CheckerGround />
         
         {activeTab === "flux" && <ModeFlux bField={bField} area={area} angle={angle} />}
-        {activeTab === "faraday" && <ModeFaraday magnetX={magnetX} magnetStr={magnetStr} turns={turns} autoSpeed={autoSpeed} magnetFlip={magnetFlip} showVectors={showVectors} />}
+        {activeTab === "faraday" && <ModeFaraday magnetX={magnetX} setMagnetX={setMagnetX} setAutoSpeed={setAutoSpeed} controlsRef={controlsRef} magnetStr={magnetStr} turns={turns} autoSpeed={autoSpeed} magnetFlip={magnetFlip} showVectors={showVectors} />}
       </Canvas>
     </div>
   )

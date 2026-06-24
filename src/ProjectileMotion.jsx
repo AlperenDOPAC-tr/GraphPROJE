@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react'
-import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon } from './Icons'
+import { PlayIcon, PauseIcon, ResetIcon, SpeedIcon, LightBulbIcon, VectorIcon } from './Icons'
 import ClockScaler from './ClockScaler'
 import * as THREE from "three"
 import { Canvas, useFrame, useThree } from "@react-three/fiber"
@@ -184,8 +184,13 @@ function LaunchArrow({ angle, velocity }) {
 }
 
 // ─── KÜRE (ATIŞ CİSMİ) ─────────────────────────────────────────────────────
-function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, onProgress, finished }) {
+function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, onProgress, finished, showVectors }) {
   const bodyRef = useRef(null)
+  const vectorGroupRef = useRef(null)
+  const textXRef = useRef(null)
+  const textYRef = useRef(null)
+  const billXRef = useRef(null)
+  const billYRef = useRef(null)
   const lastVel = useRef(0)
   const lastVy = useRef(0)
   const maxH = useRef(0)
@@ -200,6 +205,11 @@ function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, 
       frameCount.current = 0;
     }
   }, [hasStarted]);
+
+  // Vektörler için oklar
+  const arrX = useMemo(() => new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(0,0,0), 1, 0xff0000, 1.2, 0.6), [])
+  const arrY = useMemo(() => new THREE.ArrowHelper(new THREE.Vector3(0,1,0), new THREE.Vector3(0,0,0), 1, 0x00ff00, 1.2, 0.6), [])
+  const arrV = useMemo(() => new THREE.ArrowHelper(new THREE.Vector3(1,1,0).normalize(), new THREE.Vector3(0,0,0), 1, 0xffff00, 1.2, 0.6), [])
   
   // started state değiştiğinde, eğer started=true ise hızı uygula
   React.useEffect(() => {
@@ -250,6 +260,46 @@ function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, 
         
         onProgress(speed, dist, currentHeight, maxH.current, newPoint);
       }
+
+      // Vektörleri güncelle
+      if (showVectors && vectorGroupRef.current && !finished) {
+        vectorGroupRef.current.position.set(posX, posY, bodyRef.current.translation().z);
+        const scale = 0.3; // Hızı ekrandaki ok uzunluğuna dönüştürme çarpanı
+
+        if (Math.abs(v.x) > 0.1) {
+          arrX.setLength(Math.abs(v.x) * scale, 1.2, 0.6);
+          arrX.setDirection(new THREE.Vector3(Math.sign(v.x), 0, 0));
+          arrX.visible = true;
+          if (textXRef.current && billXRef.current) {
+            textXRef.current.text = `Vx: ${Math.abs(v.x).toFixed(1)} m/s`
+            billXRef.current.position.set(v.x * scale + 0.5, 0, 0)
+            textXRef.current.visible = true
+          }
+        } else {
+          arrX.visible = false;
+          if (textXRef.current) textXRef.current.visible = false;
+        }
+
+        if (Math.abs(v.y) > 0.1) {
+          arrY.setLength(Math.abs(v.y) * scale, 1.2, 0.6);
+          arrY.setDirection(new THREE.Vector3(0, Math.sign(v.y), 0));
+          arrY.visible = true;
+          if (textYRef.current && billYRef.current) {
+            textYRef.current.text = `Vy: ${Math.abs(v.y).toFixed(1)} m/s`
+            billYRef.current.position.set(-0.5, v.y * scale, 0)
+            textYRef.current.visible = true
+          }
+        } else {
+          arrY.visible = false;
+          if (textYRef.current) textYRef.current.visible = false;
+        }
+
+        if (speed > 0.1) {
+          arrV.setLength(speed * scale, 1.2, 0.6);
+          arrV.setDirection(new THREE.Vector3(v.x, v.y, 0).normalize());
+          arrV.visible = true;
+        } else { arrV.visible = false; }
+      }
     }
   });
 
@@ -266,38 +316,55 @@ function ProjectileSphere({ position, velocity, angle, hasStarted, mass, onHit, 
   const texture = React.useMemo(() => getSphereTexture("cyan"), []);
 
   return (
-    <RigidBody
-      ref={bodyRef}
-      type={hasStarted ? "dynamic" : "fixed"} // Başlayana kadar havada sabit kalsın
-      colliders={false}
-      position={position}
-      massProperties={massProps}
-      restitution={0.5} // Biraz seksin
-      linearDamping={0} // Enerji korunumunun kusursuz olması için hava sürtünmesini (damping) sıfırlıyoruz
-      angularDamping={0}
-      onCollisionEnter={() => {
-        if (hasStarted && !finished && bodyRef.current) {
-          const posY = bodyRef.current.translation().y;
-          // Yere çarptığını anlamak için hem Y pozisyonu düşük olmalı
-          // hem de cisim AŞAĞI doğru düşüyor olmalı (Y hızı negatif olmalı)
-          // Bu sayede yerden fırlatıldığında anında durması engellenir
-          if (posY < 2 && lastVy.current < -0.1) {
-            // Mesafe = Mevcut X - Başlangıç X (-23)
-            const posX = bodyRef.current.translation().x;
-            const distance = Math.max(0, posX - (-23));
-            onHit(lastVel.current, distance, maxH.current);
+    <>
+      <RigidBody
+        ref={bodyRef}
+        type={hasStarted ? "dynamic" : "fixed"} // Başlayana kadar havada sabit kalsın
+        colliders={false}
+        position={position}
+        massProperties={massProps}
+        restitution={0.5} // Biraz seksin
+        linearDamping={0} // Enerji korunumunun kusursuz olması için hava sürtünmesini (damping) sıfırlıyoruz
+        angularDamping={0}
+        onCollisionEnter={() => {
+          if (hasStarted && !finished && bodyRef.current) {
+            const posY = bodyRef.current.translation().y;
+            // Yere çarptığını anlamak için hem Y pozisyonu düşük olmalı
+            // hem de cisim AŞAĞI doğru düşüyor olmalı (Y hızı negatif olmalı)
+            // Bu sayede yerden fırlatıldığında anında durması engellenir
+            if (posY < 2 && lastVy.current < -0.1) {
+              // Mesafe = Mevcut X - Başlangıç X (-23)
+              const posX = bodyRef.current.translation().x;
+              const distance = Math.max(0, posX - (-23));
+              onHit(lastVel.current, distance, maxH.current);
+            }
           }
-        }
-      }}
-    >
-      <mesh castShadow>
-        <sphereGeometry args={[radius, 32, 32]} />
-        <meshStandardMaterial color="white" map={texture} />
-      </mesh>
-      {/* Başlamadan önce fırlatma yönünü gösteren ok */}
-      {!hasStarted && <LaunchArrow angle={angle} velocity={velocity} />}
-      <BallCollider args={[radius]} />
-    </RigidBody>
+        }}
+      >
+        <mesh castShadow>
+          <sphereGeometry args={[radius, 32, 32]} />
+          <meshStandardMaterial color="white" map={texture} />
+        </mesh>
+        {/* Başlamadan önce fırlatma yönünü gösteren ok */}
+        {!hasStarted && <LaunchArrow angle={angle} velocity={velocity} />}
+        <BallCollider args={[radius]} />
+      </RigidBody>
+
+      {/* Vektör Çizimleri (Cisimle beraber hareket eden grup) */}
+      {showVectors && hasStarted && !finished && (
+        <group ref={vectorGroupRef}>
+          <primitive object={arrX} />
+          <primitive object={arrY} />
+          <primitive object={arrV} />
+          <Billboard ref={billXRef}>
+            <Text ref={textXRef} color="#ff3333" fontSize={1.2} anchorX="left" outlineWidth={0.1} outlineColor="#000" />
+          </Billboard>
+          <Billboard ref={billYRef}>
+            <Text ref={textYRef} color="#33ff33" fontSize={1.2} anchorX="right" outlineWidth={0.1} outlineColor="#000" />
+          </Billboard>
+        </group>
+      )}
+    </>
   )
 }
 
@@ -311,6 +378,7 @@ export default function ProjectileMotion() {
   const [velocity, setVelocity] = useState(15)
   const [angle, setAngle] = useState(0)
   const [mass, setMass] = useState(5)
+  const [showVectors, setShowVectors] = useState(true)
   
   // Işık ayarları
   const [lightAngle, setLightAngle] = useState(45)
@@ -530,6 +598,32 @@ export default function ProjectileMotion() {
         </div>
       </div>
 
+      {/* Vektör Aç/Kapa Butonu */}
+      <button
+        onClick={() => setShowVectors(!showVectors)}
+        style={{
+          position: 'absolute',
+          top: '426px',
+          right: '24px',
+          zIndex: 1000,
+          width: '48px',
+          height: '48px',
+          borderRadius: '14px',
+          border: 'none',
+          background: showVectors ? '#ffffff' : 'rgba(15, 15, 20, 0.85)',
+          backdropFilter: 'blur(12px)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+          transition: 'all 0.3s cubic-bezier(0.4,0,0.2,1)',
+        }}
+        title="Toggle Vectors"
+      >
+        <VectorIcon width={24} height={24} fill={showVectors ? '#000000' : '#ffffff'} />
+      </button>
+
       {/* Play/Pause Butonu */}
       <button
         onClick={handlePlayPause}
@@ -705,6 +799,7 @@ export default function ProjectileMotion() {
             finished={finished}
             onHit={handleHit}
             onProgress={handleProgress}
+            showVectors={showVectors}
           />
           
           <HeightChart maxHeight={50} />

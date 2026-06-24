@@ -20,7 +20,11 @@ import MagneticFieldSim from "./MagneticFieldSim"
 import KeplerSim from "./KeplerSim"
 import ElectricField from "./ElectricField"
 import RelativeVelocity from "./RelativeVelocity"
+import TorqueSim from "./TorqueSim"
+import CircularMotion from "./CircularMotion"
+import CenterOfMassSim from "./CenterOfMassSim"
 import ErrorBoundary from "./ErrorBoundary"
+import PhotoelectricSim from "./PhotoelectricSim"
 
 const simulations = [
   { id: "falling", name: "Free Fall", image: "/images/freefall.jpg" },
@@ -42,7 +46,11 @@ const simulations = [
   { id: "magneticfield", name: "Magnetic Field", image: "/images/magnetic.png" },
   { id: "kepler", name: "Gravity & Kepler", image: "/images/kepler.jpg" },
   { id: "electricfield", name: "Electric Field", image: "/images/electric.jpg" },
-  { id: "relative", name: "Relative Velocity", image: "/images/relative.jpg" }
+  { id: "relative", name: "Relative Velocity", image: "/images/relative.jpg" },
+  { id: "torque", name: "Torque & Lever", image: "/images/torque.png" },
+  { id: "circular", name: "Circular Motion", image: "/images/circular.jpg" },
+  { id: "com", name: "Center of Gravity", image: "/images/com.png" },
+  { id: "photoelectric", name: "Photoelectric", image: "/images/photoelectric.png" }
 ]
 
 export default function App() {
@@ -51,7 +59,7 @@ export default function App() {
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [currentPage, setCurrentPage] = useState(0)
 
-  const itemsPerPage = 10
+  const itemsPerPage = 8
   const totalPages = Math.ceil(simulations.length / itemsPerPage)
   const displayedSims = simulations.slice(currentPage * itemsPerPage, (currentPage + 1) * itemsPerPage)
 
@@ -207,6 +215,10 @@ export default function App() {
         {mode === "kepler" && <KeplerSim />}
         {mode === "electricfield" && <ElectricField />}
         {mode === "relative" && <RelativeVelocity />}
+        {mode === "torque" && <TorqueSim />}
+        {mode === "circular" && <CircularMotion />}
+        {mode === "com" && <CenterOfMassSim />}
+        {mode === "photoelectric" && <PhotoelectricSim />}
       </ErrorBoundary>
     </div>
   )

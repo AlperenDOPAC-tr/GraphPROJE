@@ -386,6 +386,10 @@ export default function KeplerSim() {
   const panelStyle = { position: "absolute", background: "rgba(255, 255, 255, 0.95)", backdropFilter: "blur(10px)", padding: "20px", borderRadius: "16px", boxShadow: "0 10px 30px rgba(0,0,0,0.15)", zIndex: 10, width: "320px" }
   const iconBtnStyle = (active) => ({ width: "48px", height: "48px", background: active ? "#ffffff" : "rgba(15, 15, 20, 0.85)", color: active ? "#000" : "#fff", border: "none", borderRadius: "14px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: active ? "0 4px 12px rgba(0,0,0,0.15)" : "0 4px 20px rgba(0,0,0,0.25)", transition: "all 0.3s cubic-bezier(0.4,0,0.2,1)", backdropFilter: "blur(12px)" })
 
+  const dataCardStyle = { background: "#0f172a", borderRadius: "12px", padding: "16px", marginBottom: "16px", color: "#f8fafc", boxShadow: "inset 0 2px 10px rgba(0,0,0,0.5)", border: "1px solid #1e293b" }
+  const cardStyle = { background: "#ffffff", borderRadius: "12px", padding: "16px", boxShadow: "0 4px 15px rgba(0,0,0,0.05)", border: "1px solid #e2e8f0", marginBottom: "16px" }
+  const rowStyle = { display: "flex", justifyContent: "space-between", marginBottom: "8px", fontSize: "12px" }
+
   const sRadius = Math.max(1, Math.cbrt(starMass) * 0.25)
 
   return (
@@ -438,62 +442,66 @@ export default function KeplerSim() {
       {/* LEFT PANEL */}
       {uiVisible && (
         <div style={{ ...panelStyle, left: "20px", top: "20px" }}>
-          <h2 style={{ fontSize: "18px", margin: "0 0 20px 0", color: "#1e293b", fontWeight: "800" }}>GRAVITY & KEPLER</h2>
+          <h2 style={{ fontSize: "18px", margin: "0 0 20px 0", color: "#1e293b", fontWeight: "800", textAlign: "center" }}>GRAVITY & KEPLER</h2>
         
-        <label style={lblStyle}>STAR MASS (M): {starMass}</label>
-        <input type="range" min={100} max={3000} step={10} value={starMass} onChange={e => { setStarMass(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#facc15" }} />
+        {/* LIVE TELEMETRY DATA CARD */}
+        <div style={{ ...dataCardStyle, borderLeft: "4px solid #ef4444" }}>
+          <div style={{ fontWeight: "bold", color: "#94a3b8", marginBottom: "10px", fontSize: "11px", textTransform: "uppercase" }}>LIVE TELEMETRY</div>
+          
+          <div style={rowStyle}>
+            <span>Distance (r):</span>
+            <strong style={{ color: "#f8fafc" }}>{liveStats.dist.toFixed(1)} m</strong>
+          </div>
+          <div style={rowStyle}>
+            <span>Velocity (v):</span>
+            <strong style={{ color: "#ef4444" }}>{liveStats.vel.toFixed(1)} m/s</strong>
+          </div>
+          <div style={rowStyle}>
+            <span>Gravity Force (F):</span>
+            <strong style={{ color: "#eab308" }}>{liveStats.force.toFixed(1)} N</strong>
+          </div>
+          <div style={{ ...rowStyle, marginBottom: 0, paddingTop: "8px", borderTop: "1px solid #334155" }}>
+            <span>Orbit Type:</span>
+            <strong style={{ color: "#a855f7" }}>{liveStats.type}</strong>
+          </div>
+        </div>
 
-        <label style={lblStyle}>PLANET MASS (m): {planetMass}</label>
-        <input type="range" min={0.1} max={10} step={0.1} value={planetMass} onChange={e => { setPlanetMass(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#3b82f6" }} />
+        {/* ORBIT CONTROLS CARD */}
+        <div style={cardStyle}>
+          <label style={lblStyle}>STAR MASS (M): {starMass}</label>
+          <input type="range" min={100} max={3000} step={10} value={starMass} onChange={e => { setStarMass(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#facc15" }} />
 
-        <label style={lblStyle}>INITIAL DISTANCE (R₀): {initDist}</label>
-        <input type="range" min={5} max={30} step={1} value={initDist} onChange={e => { setInitDist(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#22c55e" }} />
+          <label style={lblStyle}>PLANET MASS (m): {planetMass}</label>
+          <input type="range" min={0.1} max={10} step={0.1} value={planetMass} onChange={e => { setPlanetMass(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#3b82f6" }} />
 
-        <label style={lblStyle}>INITIAL VELOCITY (v₀): {initVel}</label>
-        <input type="range" min={0} max={20} step={0.1} value={initVel} onChange={e => { setInitVel(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#ef4444" }} />
+          <label style={lblStyle}>INITIAL DISTANCE (R₀): {initDist}</label>
+          <input type="range" min={5} max={30} step={1} value={initDist} onChange={e => { setInitDist(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#22c55e" }} />
 
-        <div style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-          <button onClick={setCircularVelocity} style={{ flex: 1, padding: "8px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold", color: "#334155" }}>CIRCULAR ORBIT</button>
-          <button onClick={setEscapeVelocity} style={{ flex: 1, padding: "8px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold", color: "#334155" }}>ESCAPE VELOCITY</button>
+          <label style={lblStyle}>INITIAL VELOCITY (v₀): {initVel}</label>
+          <input type="range" min={0} max={20} step={0.1} value={initVel} onChange={e => { setInitVel(+e.target.value); handleReset() }} style={{ width: "100%", marginBottom: "16px", accentColor: "#ef4444" }} />
+
+          <div style={{ display: "flex", gap: "8px" }}>
+            <button onClick={setCircularVelocity} style={{ flex: 1, padding: "8px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold", color: "#334155" }}>CIRCULAR ORBIT</button>
+            <button onClick={setEscapeVelocity} style={{ flex: 1, padding: "8px", background: "#f1f5f9", border: "1px solid #cbd5e1", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "bold", color: "#334155" }}>ESCAPE VELOCITY</button>
+          </div>
         </div>
 
         {/* KEPLER SWEEP CONTROLS */}
-        <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#a855f7", textTransform: "uppercase" }}>Kepler's 2nd Law</span>
-            <button onClick={() => { setShowSweep(!showSweep); handleReset() }} style={{ padding: "4px 10px", background: showSweep ? "#a855f7" : "#e2e8f0", color: showSweep ? "#fff" : "#475569", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
+        <div style={{ ...dataCardStyle, borderLeft: "4px solid #a855f7", marginBottom: "0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showSweep ? "12px" : "0" }}>
+            <span style={{ fontSize: "11px", fontWeight: "bold", color: "#94a3b8", textTransform: "uppercase" }}>Kepler's 2nd Law</span>
+            <button onClick={() => { setShowSweep(!showSweep); handleReset() }} style={{ padding: "4px 10px", background: showSweep ? "#a855f7" : "#334155", color: "#fff", border: "none", borderRadius: "4px", fontSize: "11px", fontWeight: "bold", cursor: "pointer" }}>
               {showSweep ? "ON" : "OFF"}
             </button>
           </div>
           {showSweep && (
             <>
-              <label style={lblStyle}>SWEEP DURATION: {sweepDuration}s</label>
+              <label style={{ ...lblStyle, color: "#94a3b8" }}>SWEEP DURATION: {sweepDuration}s</label>
               <input type="range" min={1} max={10} step={1} value={sweepDuration} onChange={e => { setSweepDuration(+e.target.value); handleReset() }} style={{ width: "100%", accentColor: "#a855f7" }} />
             </>
           )}
         </div>
 
-        {/* LIVE STATS MOVED TO LEFT PANEL */}
-        <div style={{ marginTop: "24px", paddingTop: "16px", borderTop: "2px solid #e2e8f0" }}>
-          <h3 style={{ fontSize: "12px", margin: "0 0 12px 0", color: "#475569", fontWeight: "bold", textTransform: "uppercase" }}>Live Telemetry</h3>
-          
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-            <span style={lblStyle}>DISTANCE (r):</span>
-            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#1e293b" }}>{liveStats.dist.toFixed(1)} m</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-            <span style={lblStyle}>VELOCITY (v):</span>
-            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#ef4444" }}>{liveStats.vel.toFixed(1)} m/s</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
-            <span style={lblStyle}>GRAVITY FORCE (F):</span>
-            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#eab308" }}>{liveStats.force.toFixed(1)} N</span>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", marginTop: "12px", padding: "8px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
-            <span style={lblStyle}>ORBIT TYPE:</span>
-            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#6366f1" }}>{liveStats.type}</span>
-          </div>
-        </div>
       </div>
       )}
 
